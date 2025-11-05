@@ -469,41 +469,63 @@
             
             // 変更があった場合のみレコードを更新
             if (hasChanges) {
+                console.log('🔄 レコード更新処理を開始します (hasChanges = true)');
+                
                 // 更新前に最新のレコードを再取得して、変更をマージ
                 const latestRecord = kintone.app.record.get().record;
+                console.log('📋 最新レコードを取得しました');
                 
                 // サブテーブルのデータをマージ（最新のデータに更新した内容を反映）
                 if (latestRecord[CONFIG.subtableFieldCode]) {
                     latestRecord[CONFIG.subtableFieldCode].value = subtableData.value;
+                    console.log('📋 サブテーブルデータをマージしました');
                 }
                 
                 // メインフォームのフィールドもマージ
                 if (record['決裁番号TBL1']) {
                     latestRecord['決裁番号TBL1'].value = record['決裁番号TBL1'].value;
+                    console.log('📋 決裁番号TBL1をマージ:', record['決裁番号TBL1'].value);
                 }
                 if (record['伝票案件名TBL1']) {
                     latestRecord['伝票案件名TBL1'].value = record['伝票案件名TBL1'].value;
+                    console.log('📋 伝票案件名TBL1をマージ:', record['伝票案件名TBL1'].value);
                 }
                 if (record['伝票案件名MLタイトル']) {
                     latestRecord['伝票案件名MLタイトル'].value = record['伝票案件名MLタイトル'].value;
+                    console.log('📋 伝票案件名MLタイトルをマージ:', record['伝票案件名MLタイトル'].value);
                 }
                 if (record['明細名TBL1']) {
                     latestRecord['明細名TBL1'].value = record['明細名TBL1'].value;
+                    console.log('📋 明細名TBL1をマージ:', record['明細名TBL1'].value);
                 }
                 if (record['予算CD_TBL1']) {
                     latestRecord['予算CD_TBL1'].value = record['予算CD_TBL1'].value;
+                    console.log('📋 予算CD_TBL1をマージ:', record['予算CD_TBL1'].value);
                 }
                 if (record['費用CD_TBL1']) {
                     latestRecord['費用CD_TBL1'].value = record['費用CD_TBL1'].value;
+                    console.log('📋 費用CD_TBL1をマージ:', record['費用CD_TBL1'].value);
                 }
                 if (record['追加承認者_発注_Line']) {
                     latestRecord['追加承認者_発注_Line'].value = record['追加承認者_発注_Line'].value;
+                    console.log('📋 追加承認者_発注_Lineをマージ:', record['追加承認者_発注_Line'].value);
+                    console.log('📋 マージ後のlatestRecordの追加承認者_発注_Line:', latestRecord['追加承認者_発注_Line'].value);
                 }
                 
+                console.log('📋 kintone.app.record.set()を実行します');
+                console.log('📋 設定する追加承認者_発注_Lineの値:', latestRecord['追加承認者_発注_Line'] ? latestRecord['追加承認者_発注_Line'].value : 'フィールドなし');
+                
                 kintone.app.record.set({ record: latestRecord });
-                console.log('✅ レコードを更新しました');
+                console.log('✅ kintone.app.record.set()を実行しました');
+                
+                // 設定後に確認
+                setTimeout(function() {
+                    const verifyRecord = kintone.app.record.get().record;
+                    console.log('🔍 設定後の確認: 追加承認者_発注_Line =', verifyRecord['追加承認者_発注_Line'] ? verifyRecord['追加承認者_発注_Line'].value : 'フィールドなし');
+                }, 100);
+                
             } else {
-                console.log('ℹ️ 更新する項目がありませんでした');
+                console.log('ℹ️ 更新する項目がありませんでした (hasChanges = false)');
             }
             
         } catch (error) {
