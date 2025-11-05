@@ -282,12 +282,22 @@
             // サブテーブル1行目の値をメインフォームにコピー
             if (subtableData.value.length > 0) {
                 const rowCount = subtableData.value.length;
+                const firstRow = subtableData.value[0];
+                
+                // 伝票案件名MLタイトルには常にサブテーブル1行目の伝票案件名をコピー（行数に関わらず）
+                if (record['伝票案件名MLタイトル'] && firstRow.value['伝票案件名']) {
+                    const newValue = firstRow.value['伝票案件名'].value || '';
+                    if (record['伝票案件名MLタイトル'].value !== newValue) {
+                        record['伝票案件名MLタイトル'].value = newValue;
+                        hasChanges = true;
+                        console.log('📋 伝票案件名MLタイトルを更新:', newValue);
+                    }
+                }
                 
                 // 1行の場合：1行目の値をコピー
                 // 2行以上の場合：「添付csvをご参照ください」を設定
                 if (rowCount === 1) {
                     console.log('📋 サブテーブル1行のため、1行目の値をコピーします');
-                    const firstRow = subtableData.value[0];
                     
                     if (record['決裁番号TBL1'] && firstRow.value['決裁番号']) {
                         const newValue = firstRow.value['決裁番号'].value || '';
@@ -426,6 +436,9 @@
                 }
                 if (record['伝票案件名TBL1']) {
                     latestRecord['伝票案件名TBL1'].value = record['伝票案件名TBL1'].value;
+                }
+                if (record['伝票案件名MLタイトル']) {
+                    latestRecord['伝票案件名MLタイトル'].value = record['伝票案件名MLタイトル'].value;
                 }
                 if (record['明細名TBL1']) {
                     latestRecord['明細名TBL1'].value = record['明細名TBL1'].value;
