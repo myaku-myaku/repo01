@@ -1643,37 +1643,35 @@
                     if (paymentApproverTable && paymentApproverTable.value) {
                         const paymentApproverNames = [];
                         
-                        paymentApproverTable.value.forEach(function(row, index) {
-                            console.log('📋 行' + (index + 1) + 'の値:', row.value);
-                            if (row.value['追加承認者_支払'] && row.value['追加承認者_支払'].value) {
-                                const field = row.value['追加承認者_支払'];
-                                console.log('📋 行' + (index + 1) + 'フィールド:', field);
-                                let approverName = '';
-                                
-                                // ユーザー選択フィールドの場合
-                                if (field.type === 'USER_SELECT') {
-                                    if (Array.isArray(field.value)) {
-                                        approverName = field.value.map(function(user) {
-                                            return user.name || user.code;
-                                        }).join(',');
-                                    } else if (field.value.name) {
-                                        approverName = field.value.name;
-                                    } else {
-                                        approverName = field.value;
-                                    }
+                    paymentApproverTable.value.forEach(function(row, index) {
+                        console.log('📋 行' + (index + 1) + 'の値:', row.value);
+                        if (row.value['追加承認者_支払い'] && row.value['追加承認者_支払い'].value) {
+                            const field = row.value['追加承認者_支払い'];
+                            console.log('📋 行' + (index + 1) + 'フィールド:', field);
+                            let approverName = '';
+                            
+                            // ユーザー選択フィールドの場合
+                            if (field.type === 'USER_SELECT') {
+                                if (Array.isArray(field.value)) {
+                                    approverName = field.value.map(function(user) {
+                                        return user.name || user.code;
+                                    }).join(',');
+                                } else if (field.value.name) {
+                                    approverName = field.value.name;
                                 } else {
-                                    // 通常のテキストフィールドの場合
                                     approverName = field.value;
                                 }
-                                
-                                if (approverName) {
-                                    console.log('📋 行' + (index + 1) + '承認者名:', approverName);
-                                    paymentApproverNames.push(approverName);
-                                }
+                            } else {
+                                // 通常のテキストフィールドやドロップダウンの場合
+                                approverName = field.value;
                             }
-                        });
-                        
-                        // →で連結
+                            
+                            if (approverName) {
+                                console.log('📋 行' + (index + 1) + '承認者名:', approverName);
+                                paymentApproverNames.push(approverName);
+                            }
+                        }
+                    });                        // →で連結
                         const newLineValue = paymentApproverNames.join('→');
                         console.log('📋 生成された承認者リスト:', paymentApproverNames);
                         console.log('📋 連結後の値:', newLineValue);
