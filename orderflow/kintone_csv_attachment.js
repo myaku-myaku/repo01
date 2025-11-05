@@ -550,16 +550,22 @@
                 return;
             }
             
-            // ファイル名を「伝票案件名TBL1」フィールドから取得
+            // ファイル名をサブテーブル1行目の「明細名」から取得
             let filename = '発注内容_データ'; // デフォルト値
             
-            if (record['伝票案件名TBL1'] && record['伝票案件名TBL1'].value) {
-                filename = record['伝票案件名TBL1'].value;
-                // ファイル名として使えない文字を置換
-                filename = filename.replace(/[<>:"/\\|?*]/g, '_');
-                console.log('📁 ファイル名を伝票案件名TBL1から取得:', filename);
+            const subtableData = record[CONFIG.subtableFieldCode];
+            if (subtableData && subtableData.value && subtableData.value.length > 0) {
+                const firstRow = subtableData.value[0];
+                if (firstRow.value['明細名'] && firstRow.value['明細名'].value) {
+                    filename = firstRow.value['明細名'].value;
+                    // ファイル名として使えない文字を置換
+                    filename = filename.replace(/[<>:"/\\|?*]/g, '_');
+                    console.log('📁 ファイル名をサブテーブル1行目の明細名から取得:', filename);
+                } else {
+                    console.log('⚠ サブテーブル1行目の明細名が空のため、デフォルトファイル名を使用');
+                }
             } else {
-                console.log('⚠ 伝票案件名TBL1が空のため、デフォルトファイル名を使用');
+                console.log('⚠ サブテーブルが空のため、デフォルトファイル名を使用');
             }
             
             filename = filename + '.csv';
