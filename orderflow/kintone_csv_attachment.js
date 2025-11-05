@@ -1523,25 +1523,25 @@
             const record = event.record;
             const paymentTable = record['支払い金額テーブル'];
             
-            if (!paymentTable || !paymentTable.value || paymentTable.value.length === 0) {
-                console.log('✓ 支払い金額テーブルが空です。チェックをスキップします');
-                return event;
-            }
-            
             let checkedCount = 0;
             const checkedRows = [];
             let checkedRowIndex = -1;
             
-            // チェックされている行を数える
-            paymentTable.value.forEach(function(row, index) {
-                const mailField = row.value['メール送付'];
-                if (mailField && mailField.value && mailField.value.length > 0) {
-                    checkedCount++;
-                    checkedRows.push(index + 1); // 1始まりで行番号を記録
-                    checkedRowIndex = index;
-                    console.log('✓ 行', (index + 1), 'がチェックされています');
-                }
-            });
+            // 支払い金額テーブルが存在する場合のみチェック
+            if (paymentTable && paymentTable.value && paymentTable.value.length > 0) {
+                // チェックされている行を数える
+                paymentTable.value.forEach(function(row, index) {
+                    const mailField = row.value['メール送付'];
+                    if (mailField && mailField.value && mailField.value.length > 0) {
+                        checkedCount++;
+                        checkedRows.push(index + 1); // 1始まりで行番号を記録
+                        checkedRowIndex = index;
+                        console.log('✓ 行', (index + 1), 'がチェックされています');
+                    }
+                });
+            } else {
+                console.log('✓ 支払い金額テーブルが空です。メール送付チェックをスキップします');
+            }
             
             console.log('✓ チェックされている行数:', checkedCount);
             console.log('✓ チェックされている行:', checkedRows);
