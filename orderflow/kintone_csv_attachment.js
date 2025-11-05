@@ -281,37 +281,90 @@
             
             // サブテーブル1行目の値をメインフォームにコピー
             if (subtableData.value.length > 0) {
-                const firstRow = subtableData.value[0];
+                const rowCount = subtableData.value.length;
                 
-                if (record['決裁番号TBL1'] && firstRow.value['決裁番号']) {
-                    const newValue = firstRow.value['決裁番号'].value || '';
-                    if (record['決裁番号TBL1'].value !== newValue) {
-                        record['決裁番号TBL1'].value = newValue;
-                        hasChanges = true;
+                // 1行の場合：1行目の値をコピー
+                // 2行以上の場合：「添付csvをご参照ください」を設定
+                if (rowCount === 1) {
+                    console.log('📋 サブテーブル1行のため、1行目の値をコピーします');
+                    const firstRow = subtableData.value[0];
+                    
+                    if (record['決裁番号TBL1'] && firstRow.value['決裁番号']) {
+                        const newValue = firstRow.value['決裁番号'].value || '';
+                        if (record['決裁番号TBL1'].value !== newValue) {
+                            record['決裁番号TBL1'].value = newValue;
+                            hasChanges = true;
+                        }
                     }
-                }
-                
-                if (record['伝票案件名TBL1'] && firstRow.value['伝票案件名']) {
-                    const newValue = firstRow.value['伝票案件名'].value || '';
-                    if (record['伝票案件名TBL1'].value !== newValue) {
-                        record['伝票案件名TBL1'].value = newValue;
-                        hasChanges = true;
+                    
+                    if (record['伝票案件名TBL1'] && firstRow.value['伝票案件名']) {
+                        const newValue = firstRow.value['伝票案件名'].value || '';
+                        if (record['伝票案件名TBL1'].value !== newValue) {
+                            record['伝票案件名TBL1'].value = newValue;
+                            hasChanges = true;
+                        }
                     }
-                }
-                
-                if (record['予算CD_TBL1'] && firstRow.value['予算CD']) {
-                    const newValue = firstRow.value['予算CD'].value || '';
-                    if (record['予算CD_TBL1'].value !== newValue) {
-                        record['予算CD_TBL1'].value = newValue;
-                        hasChanges = true;
+                    
+                    if (record['明細名TBL1'] && firstRow.value['明細名']) {
+                        const newValue = firstRow.value['明細名'].value || '';
+                        if (record['明細名TBL1'].value !== newValue) {
+                            record['明細名TBL1'].value = newValue;
+                            hasChanges = true;
+                        }
                     }
-                }
-                
-                if (record['費用CD_TBL1'] && firstRow.value['費用CD']) {
-                    const newValue = firstRow.value['費用CD'].value || '';
-                    if (record['費用CD_TBL1'].value !== newValue) {
-                        record['費用CD_TBL1'].value = newValue;
-                        hasChanges = true;
+                    
+                    if (record['予算CD_TBL1'] && firstRow.value['予算CD']) {
+                        const newValue = firstRow.value['予算CD'].value || '';
+                        if (record['予算CD_TBL1'].value !== newValue) {
+                            record['予算CD_TBL1'].value = newValue;
+                            hasChanges = true;
+                        }
+                    }
+                    
+                    if (record['費用CD_TBL1'] && firstRow.value['費用CD']) {
+                        const newValue = firstRow.value['費用CD'].value || '';
+                        if (record['費用CD_TBL1'].value !== newValue) {
+                            record['費用CD_TBL1'].value = newValue;
+                            hasChanges = true;
+                        }
+                    }
+                } else {
+                    console.log('📋 サブテーブル2行以上のため、「添付csvをご参照ください」を設定します (行数:', rowCount, ')');
+                    const csvMessage = '添付csvをご参照ください';
+                    
+                    if (record['決裁番号TBL1']) {
+                        if (record['決裁番号TBL1'].value !== csvMessage) {
+                            record['決裁番号TBL1'].value = csvMessage;
+                            hasChanges = true;
+                        }
+                    }
+                    
+                    if (record['伝票案件名TBL1']) {
+                        if (record['伝票案件名TBL1'].value !== csvMessage) {
+                            record['伝票案件名TBL1'].value = csvMessage;
+                            hasChanges = true;
+                        }
+                    }
+                    
+                    if (record['明細名TBL1']) {
+                        if (record['明細名TBL1'].value !== csvMessage) {
+                            record['明細名TBL1'].value = csvMessage;
+                            hasChanges = true;
+                        }
+                    }
+                    
+                    if (record['予算CD_TBL1']) {
+                        if (record['予算CD_TBL1'].value !== csvMessage) {
+                            record['予算CD_TBL1'].value = csvMessage;
+                            hasChanges = true;
+                        }
+                    }
+                    
+                    if (record['費用CD_TBL1']) {
+                        if (record['費用CD_TBL1'].value !== csvMessage) {
+                            record['費用CD_TBL1'].value = csvMessage;
+                            hasChanges = true;
+                        }
                     }
                 }
             }
@@ -373,6 +426,9 @@
                 }
                 if (record['伝票案件名TBL1']) {
                     latestRecord['伝票案件名TBL1'].value = record['伝票案件名TBL1'].value;
+                }
+                if (record['明細名TBL1']) {
+                    latestRecord['明細名TBL1'].value = record['明細名TBL1'].value;
                 }
                 if (record['予算CD_TBL1']) {
                     latestRecord['予算CD_TBL1'].value = record['予算CD_TBL1'].value;
