@@ -1663,6 +1663,10 @@
     kintone.events.on(['app.record.create.submit', 'app.record.edit.submit'], function(event) {
         console.log('📋 レコード保存時のバリデーションを実行します');
         
+        // 保存前に追加承認者_発注_Lineなどを更新
+        console.log('📋 保存前にupdateMeisaiNameOnce()を実行します');
+        updateMeisaiNameOnce();
+        
         try {
             const record = event.record;
             const paymentTable = record['支払い金額テーブル'];
