@@ -380,43 +380,90 @@
             }
             
             // 追加承認者_発注時TBの全行を追加承認者_発注_Lineにコピー
+            console.log('🔍 追加承認者_発注_Line処理を開始します');
             const approverTable = record['追加承認者_発注時TB'];
+            console.log('📋 追加承認者_発注時TB:', approverTable);
+            console.log('📋 追加承認者_発注時TB存在チェック:', !!approverTable);
+            console.log('📋 追加承認者_発注時TB.value:', approverTable ? approverTable.value : null);
+            console.log('📋 追加承認者_発注時TB行数:', approverTable && approverTable.value ? approverTable.value.length : 0);
+            console.log('📋 追加承認者_発注_Line存在チェック:', !!record['追加承認者_発注_Line']);
+            
             if (approverTable && approverTable.value && record['追加承認者_発注_Line']) {
+                console.log('✅ 追加承認者_発注時TBと追加承認者_発注_Lineが存在します');
                 const approverNames = [];
                 
-                approverTable.value.forEach(function(row) {
-                    if (row.value['追加承認者_発注'] && row.value['追加承認者_発注'].value) {
+                approverTable.value.forEach(function(row, index) {
+                    console.log('📋 行' + (index + 1) + 'の処理開始');
+                    console.log('📋 行' + (index + 1) + 'の全フィールド:', Object.keys(row.value));
+                    console.log('📋 行' + (index + 1) + 'の値:', row.value);
+                    
+                    if (row.value['追加承認者_発注']) {
                         const field = row.value['追加承認者_発注'];
-                        let approverName = '';
+                        console.log('📋 行' + (index + 1) + ' 追加承認者_発注フィールド:', field);
+                        console.log('📋 行' + (index + 1) + ' フィールドタイプ:', field.type);
+                        console.log('📋 行' + (index + 1) + ' フィールド値:', field.value);
                         
-                        // ユーザー選択フィールドの場合
-                        if (field.type === 'USER_SELECT') {
-                            if (Array.isArray(field.value)) {
-                                approverName = field.value.map(function(user) {
-                                    return user.name || user.code;
-                                }).join(',');
-                            } else if (field.value.name) {
-                                approverName = field.value.name;
+                        if (field.value) {
+                            let approverName = '';
+                            
+                            // ユーザー選択フィールドの場合
+                            if (field.type === 'USER_SELECT') {
+                                console.log('📋 行' + (index + 1) + ' USER_SELECTフィールドとして処理');
+                                if (Array.isArray(field.value)) {
+                                    console.log('📋 行' + (index + 1) + ' 配列形式:', field.value);
+                                    approverName = field.value.map(function(user) {
+                                        console.log('📋 ユーザー情報:', user);
+                                        return user.name || user.code;
+                                    }).join(',');
+                                } else if (field.value.name) {
+                                    console.log('📋 行' + (index + 1) + ' オブジェクト形式 (name):', field.value.name);
+                                    approverName = field.value.name;
+                                } else {
+                                    console.log('📋 行' + (index + 1) + ' 文字列形式:', field.value);
+                                    approverName = field.value;
+                                }
                             } else {
+                                // 通常のテキストフィールドやドロップダウンの場合
+                                console.log('📋 行' + (index + 1) + ' テキスト/ドロップダウンとして処理');
                                 approverName = field.value;
                             }
+                            
+                            console.log('📋 行' + (index + 1) + ' 取得した承認者名:', approverName);
+                            
+                            if (approverName) {
+                                approverNames.push(approverName);
+                                console.log('✅ 行' + (index + 1) + ' 承認者名を追加:', approverName);
+                            } else {
+                                console.log('⚠️ 行' + (index + 1) + ' 承認者名が空です');
+                            }
                         } else {
-                            // 通常のテキストフィールドの場合
-                            approverName = field.value;
+                            console.log('⚠️ 行' + (index + 1) + ' 追加承認者_発注の値がありません');
                         }
-                        
-                        if (approverName) {
-                            approverNames.push(approverName);
-                        }
+                    } else {
+                        console.log('⚠️ 行' + (index + 1) + ' 追加承認者_発注フィールドが存在しません');
                     }
                 });
                 
                 // →で連結
                 const newLineValue = approverNames.join('→');
+                console.log('📋 収集した承認者名リスト:', approverNames);
+                console.log('📋 連結後の値:', newLineValue);
+                console.log('📋 現在の追加承認者_発注_Lineの値:', record['追加承認者_発注_Line'].value);
                 
                 if (record['追加承認者_発注_Line'].value !== newLineValue) {
                     record['追加承認者_発注_Line'].value = newLineValue;
                     hasChanges = true;
+                    console.log('✅ 追加承認者_発注_Lineを更新しました:', newLineValue);
+                } else {
+                    console.log('ℹ️ 追加承認者_発注_Lineは既に同じ値です');
+                }
+            } else {
+                if (!approverTable) {
+                    console.log('⚠️ 追加承認者_発注時TBフィールドが存在しません');
+                } else if (!approverTable.value) {
+                    console.log('⚠️ 追加承認者_発注時TBが空です');
+                } else if (!record['追加承認者_発注_Line']) {
+                    console.log('⚠️ 追加承認者_発注_Lineフィールドが存在しません');
                 }
             }
             
