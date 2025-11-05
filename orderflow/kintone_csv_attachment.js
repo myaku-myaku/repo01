@@ -1663,12 +1663,71 @@
     kintone.events.on(['app.record.create.submit', 'app.record.edit.submit'], function(event) {
         console.log('📋 レコード保存時のバリデーションを実行します');
         
-        // 保存前に追加承認者_発注_Lineなどを更新
-        console.log('📋 保存前にupdateMeisaiNameOnce()を実行します');
-        updateMeisaiNameOnce();
+        // 保存前に追加承認者_発注_Lineなどを更新（event.recordを直接変更）
+        console.log('📋 保存前に追加承認者_発注_Line等を更新します');
+        
+        const record = event.record;
+        
+        // 追加承認者_発注時TBから追加承認者_発注_Lineを生成
+        if (record['追加承認者_発注時TB'] && record['追加承認者_発注_Line']) {
+            const approverTable = record['追加承認者_発注時TB'];
+            const approverNames = [];
+            
+            if (approverTable.value && approverTable.value.length > 0) {
+                approverTable.value.forEach(function(row) {
+                    const field = row.value['追加承認者_発注'];
+                    if (field && field.value) {
+                        approverNames.push(field.value);
+                    }
+                });
+                
+                if (approverNames.length > 0) {
+                    const newLineValue = approverNames.join('→');
+                    record['追加承認者_発注_Line'].value = newLineValue;
+                    console.log('✅ 追加承認者_発注_Lineを設定しました:', newLineValue);
+                }
+            }
+        }
+        
+        // サブテーブルの1行目から各フィールドをコピー
+        const subtableData = record[CONFIG.subtableFieldCode];
+        if (subtableData && subtableData.value && subtableData.value.length > 0) {
+            const firstRow = subtableData.value[0].value;
+            
+            // 決裁番号TBL1
+            if (firstRow['決裁番号'] && record['決裁番号TBL1']) {
+                record['決裁番号TBL1'].value = firstRow['決裁番号'].value || '';
+            }
+            
+            // 伝票案件名TBL1
+            if (firstRow['伝票案件名'] && record['伝票案件名TBL1']) {
+                record['伝票案件名TBL1'].value = firstRow['伝票案件名'].value || '';
+            }
+            
+            // 伝票案件名MLタイトル（常に1行目の伝票案件名をコピー）
+            if (firstRow['伝票案件名'] && record['伝票案件名MLタイトル']) {
+                record['伝票案件名MLタイトル'].value = firstRow['伝票案件名'].value || '';
+            }
+            
+            // 明細名TBL1
+            if (firstRow['明細名'] && record['明細名TBL1']) {
+                record['明細名TBL1'].value = firstRow['明細名'].value || '';
+            }
+            
+            // 予算CD_TBL1
+            if (firstRow['予算CD'] && record['予算CD_TBL1']) {
+                record['予算CD_TBL1'].value = firstRow['予算CD'].value || '';
+            }
+            
+            // 費用CD_TBL1
+            if (firstRow['費用CD'] && record['費用CD_TBL1']) {
+                record['費用CD_TBL1'].value = firstRow['費用CD'].value || '';
+            }
+            
+            console.log('✅ サブテーブル1行目からフィールドをコピーしました');
+        }
         
         try {
-            const record = event.record;
             const paymentTable = record['支払い金額テーブル'];
             
             let checkedCount = 0;
