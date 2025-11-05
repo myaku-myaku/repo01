@@ -1610,13 +1610,19 @@
             // ==========================================
             // 📝 支払い承認フローチェックによる追加承認者_支払_Lineの制御
             // ==========================================
+            console.log('🔍 支払い承認フロー処理を開始します');
+            console.log('🔍 利用可能なフィールド:', Object.keys(record));
+            
             const approvalFlowCheck = record['支払い承認フローチェック'];
+            console.log('🔍 支払い承認フローチェックフィールド:', approvalFlowCheck);
+            console.log('🔍 支払い承認フローチェック値:', approvalFlowCheck ? approvalFlowCheck.value : 'フィールドなし');
             
             if (approvalFlowCheck && record['追加承認者_支払_Line']) {
                 const isChecked = Array.isArray(approvalFlowCheck.value) && 
                                 approvalFlowCheck.value.includes('発注時と同じ承認フロー');
                 
                 console.log('📋 支払い承認フローチェック:', isChecked ? 'チェックあり' : 'チェックなし');
+                console.log('📋 チェックボックスの値:', approvalFlowCheck.value);
                 
                 if (isChecked) {
                     // チェックが入っている場合: 追加承認者_発注_Lineをコピー
@@ -1629,14 +1635,19 @@
                     }
                 } else {
                     // チェックが入っていない場合: 追加承認者_支払TBから生成
+                    console.log('📋 追加承認者_支払TBから生成します');
                     const paymentApproverTable = record['追加承認者_支払TB'];
+                    console.log('📋 追加承認者_支払TB:', paymentApproverTable);
+                    console.log('📋 追加承認者_支払TB行数:', paymentApproverTable && paymentApproverTable.value ? paymentApproverTable.value.length : 0);
                     
                     if (paymentApproverTable && paymentApproverTable.value) {
                         const paymentApproverNames = [];
                         
-                        paymentApproverTable.value.forEach(function(row) {
+                        paymentApproverTable.value.forEach(function(row, index) {
+                            console.log('📋 行' + (index + 1) + 'の値:', row.value);
                             if (row.value['追加承認者_支払'] && row.value['追加承認者_支払'].value) {
                                 const field = row.value['追加承認者_支払'];
+                                console.log('📋 行' + (index + 1) + 'フィールド:', field);
                                 let approverName = '';
                                 
                                 // ユーザー選択フィールドの場合
@@ -1656,6 +1667,7 @@
                                 }
                                 
                                 if (approverName) {
+                                    console.log('📋 行' + (index + 1) + '承認者名:', approverName);
                                     paymentApproverNames.push(approverName);
                                 }
                             }
@@ -1663,6 +1675,8 @@
                         
                         // →で連結
                         const newLineValue = paymentApproverNames.join('→');
+                        console.log('📋 生成された承認者リスト:', paymentApproverNames);
+                        console.log('📋 連結後の値:', newLineValue);
                         record['追加承認者_支払_Line'].value = newLineValue;
                         console.log('✅ 追加承認者_支払TBから追加承認者_支払_Lineを生成しました:', newLineValue);
                     } else {
