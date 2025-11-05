@@ -1607,6 +1607,78 @@
                 console.log('✅ Checkフィールドをクリアしました');
             }
             
+            // ==========================================
+            // 📝 支払い承認フローチェックによる追加承認者_支払_Lineの制御
+            // ==========================================
+            const approvalFlowCheck = record['支払い承認フローチェック'];
+            
+            if (approvalFlowCheck && record['追加承認者_支払_Line']) {
+                const isChecked = Array.isArray(approvalFlowCheck.value) && 
+                                approvalFlowCheck.value.includes('発注時と同じ承認フロー');
+                
+                console.log('📋 支払い承認フローチェック:', isChecked ? 'チェックあり' : 'チェックなし');
+                
+                if (isChecked) {
+                    // チェックが入っている場合: 追加承認者_発注_Lineをコピー
+                    if (record['追加承認者_発注_Line']) {
+                        const sourceValue = record['追加承認者_発注_Line'].value || '';
+                        record['追加承認者_支払_Line'].value = sourceValue;
+                        console.log('✅ 追加承認者_発注_Lineを追加承認者_支払_Lineにコピーしました:', sourceValue);
+                    } else {
+                        console.log('⚠ 追加承認者_発注_Lineフィールドが見つかりません');
+                    }
+                } else {
+                    // チェックが入っていない場合: 追加承認者_支払TBから生成
+                    const paymentApproverTable = record['追加承認者_支払TB'];
+                    
+                    if (paymentApproverTable && paymentApproverTable.value) {
+                        const paymentApproverNames = [];
+                        
+                        paymentApproverTable.value.forEach(function(row) {
+                            if (row.value['追加承認者_支払'] && row.value['追加承認者_支払'].value) {
+                                const field = row.value['追加承認者_支払'];
+                                let approverName = '';
+                                
+                                // ユーザー選択フィールドの場合
+                                if (field.type === 'USER_SELECT') {
+                                    if (Array.isArray(field.value)) {
+                                        approverName = field.value.map(function(user) {
+                                            return user.name || user.code;
+                                        }).join(',');
+                                    } else if (field.value.name) {
+                                        approverName = field.value.name;
+                                    } else {
+                                        approverName = field.value;
+                                    }
+                                } else {
+                                    // 通常のテキストフィールドの場合
+                                    approverName = field.value;
+                                }
+                                
+                                if (approverName) {
+                                    paymentApproverNames.push(approverName);
+                                }
+                            }
+                        });
+                        
+                        // →で連結
+                        const newLineValue = paymentApproverNames.join('→');
+                        record['追加承認者_支払_Line'].value = newLineValue;
+                        console.log('✅ 追加承認者_支払TBから追加承認者_支払_Lineを生成しました:', newLineValue);
+                    } else {
+                        console.log('⚠ 追加承認者_支払TBが空またはフィールドが見つかりません');
+                        record['追加承認者_支払_Line'].value = '';
+                    }
+                }
+            } else {
+                if (!approvalFlowCheck) {
+                    console.log('⚠ 支払い承認フローチェックフィールドが見つかりません');
+                }
+                if (!record['追加承認者_支払_Line']) {
+                    console.log('⚠ 追加承認者_支払_Lineフィールドが見つかりません');
+                }
+            }
+            
         } catch (error) {
             console.error('メール送付チェック制御エラー:', error);
         }
