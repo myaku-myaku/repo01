@@ -1,0 +1,11 @@
+
+# macOS
+.DS_Store
+
+# ダウンロードしたライブラリ（Kintone JSカスタマイズ用）
+160.Orderflow/jspdf.umd.min.js
+160.Orderflow/ipaexg-font.js
+160.Orderflow/zip_encrypt.js
+
+# バックアップ
+160.Orderflow/00.backup/
