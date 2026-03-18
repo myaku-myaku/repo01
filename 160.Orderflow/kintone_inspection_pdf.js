@@ -360,7 +360,17 @@
         y += 15;
 
         // ----- 発行番号 -----
-        var recordNo = record[CONFIG.RECORD_NO_FIELD] ? record[CONFIG.RECORD_NO_FIELD].value : '';
+        var recordNo = '';
+        // Record_No フィールドを優先、なければ $id（レコード番号）を使用
+        if (CONFIG.RECORD_NO_FIELD && record[CONFIG.RECORD_NO_FIELD] && record[CONFIG.RECORD_NO_FIELD].value) {
+            recordNo = record[CONFIG.RECORD_NO_FIELD].value;
+        }
+        if (!recordNo && record['$id']) {
+            recordNo = record['$id'].value;
+        }
+        if (!recordNo) {
+            recordNo = String(kintone.app.record.getId() || '0');
+        }
         var docNumber = buildDocNumber(recordNo);
         doc.text('発行番号：' + docNumber, rightX, y, { align: 'right' });
         y += 25;
@@ -641,6 +651,38 @@
     // =============================================
     // ZIPファイルを添付フィールドにアップロード
     // =============================================
+    /**
+     * XMLHttpRequest でファイルを Kintone にアップロードし fileKey を返す。
+     * kintone.api() は FormData (multipart/form-data) を扱えないため XHR を使う。
+     */
+    function uploadFile(blob, filename) {
+        return new Promise(function (resolve, reject) {
+            var formData = new FormData();
+            formData.append('__REQUEST_TOKEN__', kintone.getRequestToken());
+            formData.append('file', blob, filename);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', kintone.api.url('/k/v1/file', true));
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    try {
+                        var resp = JSON.parse(xhr.responseText);
+                        resolve(resp.fileKey);
+                    } catch (e) {
+                        reject(new Error('レスポンス解析エラー: ' + xhr.responseText));
+                    }
+                } else {
+                    reject(new Error('ファイルアップロード失敗 (HTTP ' + xhr.status + '): ' + xhr.responseText));
+                }
+            };
+            xhr.onerror = function () {
+                reject(new Error('ファイルアップロード通信エラー'));
+            };
+            xhr.send(formData);
+        });
+    }
+
     function uploadZipToRecord(zipBlob, zipFilename) {
         var recordId = kintone.app.record.getId();
         if (!recordId) {
@@ -648,13 +690,10 @@
             return;
         }
 
-        // 1. ファイルアップロード
-        var formData = new FormData();
-        formData.append('file', zipBlob, zipFilename);
-
-        kintone.api(kintone.api.url('/k/v1/file', true), 'POST', formData)
-            .then(function (uploadResp) {
-                console.log('[inspection-pdf] ZIPアップロード成功: fileKey=' + uploadResp.fileKey);
+        // 1. XHR でファイルアップロード → fileKey 取得
+        uploadFile(zipBlob, zipFilename)
+            .then(function (fileKey) {
+                console.log('[inspection-pdf] ZIPアップロード成功: fileKey=' + fileKey);
 
                 // 2. 現在の添付ファイルを取得して追加
                 return kintone.api(kintone.api.url('/k/v1/record', true), 'GET', {
@@ -670,7 +709,7 @@
                     var fileList = currentFiles.map(function (f) {
                         return { fileKey: f.fileKey };
                     });
-                    fileList.push({ fileKey: uploadResp.fileKey });
+                    fileList.push({ fileKey: fileKey });
 
                     // 3. レコード更新
                     var updateBody = {
