@@ -19,6 +19,12 @@
  *    - 添付ファイル: 請求書_支払tbl（当日行の先頭行）。
  *    - スペース: payment_mail_check に配置。
  *
+ * 3. メールフィールドセット（Step3）
+ *    - メールプレビュー確認後、「メールフィールドセット」ボタンで
+ *      Boost! Mail プラグイン用フィールドへ値を書き込む。
+ *    - 請求書_ML: 当日行の請求書_支払tblから重複除去したファイルをREST APIでコピー。
+ *    - プロセスアクション前に実行し、プラグインが読み取れるようにする。
+ *
  * 【依存】なし（Kintone JS API のみ使用）
  * 【配置】Kintone アプリの JS カスタマイズにアップロード
  */
@@ -75,6 +81,12 @@
         // 添付ファイル（サブテーブル内）
         ATTACHMENT_FIELD: '請求書_支払tbl',
 
+        // ---------- Step3: メールフィールドセット ----------
+        PROCESS_ACTION: '支払完了→クローズ',
+        ML_ATTACHMENT_FIELD: '請求書_ML',   // プラグイン用: メール添付ファイル（FILE型）
+        SET_ML_BUTTON_ID: 'payment_set_ml_btn',
+        SET_ML_BUTTON_LABEL: 'メールフィールドセット',
+
         // CSV 生成対象フィールド（kintone_csv_attachment.js 互換形式）
         CSV_FIELDS: [
             { code: '決裁番号_支払tbl',   header: '決裁番号' },
@@ -123,6 +135,32 @@
         var val = row.value[fieldCode].value;
         if (val === null || val === undefined) return '';
         return String(val);
+    }
+
+    /**
+     * 当日行の請求書ファイルを重複除去して収集する
+     * @param {Object} record - kintone レコード
+     * @returns {Array} 重複除去済みファイルオブジェクト配列
+     */
+    function collectTodayAttachments(record) {
+        var todayRows = getTodayRows(record);
+        var allFiles = [];
+        var seenNames = {};
+        for (var i = 0; i < todayRows.length; i++) {
+            var row = todayRows[i];
+            if (row && row.value[CONFIG.ATTACHMENT_FIELD]) {
+                var files = row.value[CONFIG.ATTACHMENT_FIELD].value;
+                if (files) {
+                    for (var j = 0; j < files.length; j++) {
+                        if (!seenNames[files[j].name]) {
+                            seenNames[files[j].name] = true;
+                            allFiles.push(files[j]);
+                        }
+                    }
+                }
+            }
+        }
+        return allFiles;
     }
 
     /** 今日の日付を YYYY-MM-DD で返す */
@@ -471,6 +509,30 @@
             });
 
             dialog.textContent = preview;
+
+            // --- メールフィールドセットボタン ---
+            var setMlBtn = document.createElement('button');
+            setMlBtn.innerText = CONFIG.SET_ML_BUTTON_LABEL;
+            setMlBtn.style.cssText =
+                'display:block;margin:12px auto 0;padding:8px 32px;' +
+                'background:#e67e22;color:#fff;border:none;border-radius:4px;' +
+                'font-size:14px;cursor:pointer;font-weight:bold;';
+            setMlBtn.addEventListener('click', function () {
+                setMlBtn.disabled = true;
+                setMlBtn.innerText = '処理中...';
+                setMailFields(record).then(function () {
+                    setMlBtn.innerText = 'セット完了 ✓（リロード中…）';
+                    setMlBtn.style.background = '#27ae60';
+                    // PUT でリビジョンが進むため、ページをリロードして反映
+                    setTimeout(function () { location.reload(); }, 800);
+                }).catch(function (err) {
+                    setMlBtn.innerText = 'エラー（コンソール参照）';
+                    setMlBtn.style.background = '#e74c3c';
+                    console.error('[payment-helper] メールフィールドセット失敗:', err);
+                });
+            });
+            dialog.appendChild(setMlBtn);
+
             dialog.appendChild(closeBtn);
             overlay.appendChild(dialog);
             overlay.addEventListener('click', function (e) {
@@ -555,6 +617,140 @@
         // 最終手段: fixed
         button.style.cssText += 'position:fixed;top:12px;right:200px;z-index:10000;';
         document.body.appendChild(button);
+    }
+
+    // =============================================
+    // Step3: メールフィールドセット（REST API PUT）
+    // =============================================
+    // process.proceed 内では FILE 型の書き込みや REST API PUT が
+    // リビジョン競合を起こすため、プレビューポップアップから実行する。
+
+    /**
+     * ファイルをダウンロードして再アップロードし、新しい fileKey を返す
+     * (REST API GET の fileKey はダウンロード専用で PUT に使えないため)
+     * @param {string} fileKey - ダウンロード用 fileKey
+     * @param {string} fileName - ファイル名
+     * @returns {Promise<string>} 新しい fileKey
+     */
+    function reuploadFile(fileKey, fileName) {
+        var downloadUrl = kintone.api.url('/k/v1/file', true) + '?fileKey=' + fileKey;
+        return new kintone.Promise(function (resolve, reject) {
+            // 1. ファイルをダウンロード
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', downloadUrl);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'blob';
+            xhr.onload = function () {
+                if (xhr.status !== 200) {
+                    reject(new Error('ダウンロード失敗: ' + xhr.status));
+                    return;
+                }
+                var blob = xhr.response;
+                // 2. ファイルをアップロード（CSRF トークン必須）
+                var formData = new FormData();
+                formData.append('__REQUEST_TOKEN__', kintone.getRequestToken());
+                formData.append('file', blob, fileName);
+                var uploadXhr = new XMLHttpRequest();
+                uploadXhr.open('POST', kintone.api.url('/k/v1/file', true));
+                uploadXhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                uploadXhr.onload = function () {
+                    if (uploadXhr.status !== 200) {
+                        reject(new Error('アップロード失敗: ' + uploadXhr.status));
+                        return;
+                    }
+                    var resp = JSON.parse(uploadXhr.responseText);
+                    resolve(resp.fileKey);
+                };
+                uploadXhr.onerror = function () { reject(new Error('アップロード通信エラー')); };
+                uploadXhr.send(formData);
+            };
+            xhr.onerror = function () { reject(new Error('ダウンロード通信エラー')); };
+            xhr.send();
+        });
+    }
+
+    /**
+     * CSV テキストから Blob を作成し、アップロードして fileKey を返す
+     * @param {string} csvText - CSV テキスト
+     * @param {string} fileName - ファイル名
+     * @returns {Promise<string>} 新しい fileKey
+     */
+    function uploadCsvBlob(csvText, fileName) {
+        var csvContent = '\uFEFF' + csvText; // BOM付きUTF-8
+        var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+        var formData = new FormData();
+        formData.append('__REQUEST_TOKEN__', kintone.getRequestToken());
+        formData.append('file', blob, fileName);
+
+        return new kintone.Promise(function (resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', kintone.api.url('/k/v1/file', true));
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.onload = function () {
+                if (xhr.status !== 200) {
+                    reject(new Error('CSVアップロード失敗: ' + xhr.status));
+                    return;
+                }
+                var resp = JSON.parse(xhr.responseText);
+                resolve(resp.fileKey);
+            };
+            xhr.onerror = function () { reject(new Error('CSVアップロード通信エラー')); };
+            xhr.send(formData);
+        });
+    }
+
+    /**
+     * REST API PUT で請求書_ML に添付ファイルをセットする
+     * ファイルを再アップロードして新 fileKey を取得してから PUT する
+     * 当日行が複数ある場合は CSV ファイルも生成して添付する
+     * @param {Object} record - kintone レコード
+     * @returns {Promise}
+     */
+    function setMailFields(record) {
+        var attachFiles = collectTodayAttachments(record);
+        var todayRows = getTodayRows(record);
+
+        console.log('[payment-helper] 請求書_ML セット開始: 添付 ' + attachFiles.length + ' 件, 当日行 ' + todayRows.length + ' 行');
+
+        // 請求書ファイルを再アップロード
+        var uploadPromises = attachFiles.map(function (f) {
+            return reuploadFile(f.fileKey, f.name);
+        });
+
+        // 当日行が複数 → CSV ファイルも生成してアップロード
+        if (todayRows.length > 1) {
+            var csvText = buildCsvFromRows(todayRows);
+            var now = new Date();
+            var dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+            var timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+            var csvFileName = '支払依頼明細_' + dateStr + '_' + timeStr + '.csv';
+            uploadPromises.push(uploadCsvBlob(csvText, csvFileName));
+            console.log('[payment-helper] CSV ファイル生成: ' + csvFileName);
+        }
+
+        if (uploadPromises.length === 0) {
+            console.log('[payment-helper] 添付ファイルなし、スキップ');
+            return kintone.Promise.resolve();
+        }
+
+        return kintone.Promise.all(uploadPromises).then(function (newFileKeys) {
+            var fileKeyValues = newFileKeys.map(function (key) {
+                return { fileKey: key };
+            });
+
+            var recId = kintone.app.record.getId();
+            var appId = kintone.app.getId();
+            var body = {
+                app: appId,
+                id: recId,
+                record: {}
+            };
+            body.record[CONFIG.ML_ATTACHMENT_FIELD] = { value: fileKeyValues };
+
+            return kintone.api(kintone.api.url('/k/v1/record', true), 'PUT', body);
+        }).then(function () {
+            console.log('[payment-helper] 請求書_ML セット完了（REST API）: ' + uploadPromises.length + ' 件');
+        });
     }
 
     console.log('[INIT] kintone_payment_helper 読み込み完了');
