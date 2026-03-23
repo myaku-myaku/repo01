@@ -412,94 +412,6 @@
                 }
             }
             
-            // 追加承認者_発注時TBの全行を追加承認者_発注_Lineにコピー
-            console.log('🔍 追加承認者_発注_Line処理を開始します');
-            const approverTable = record['追加承認者_発注時TB'];
-            console.log('📋 追加承認者_発注時TB:', approverTable);
-            console.log('📋 追加承認者_発注時TB存在チェック:', !!approverTable);
-            console.log('📋 追加承認者_発注時TB.value:', approverTable ? approverTable.value : null);
-            console.log('📋 追加承認者_発注時TB行数:', approverTable && approverTable.value ? approverTable.value.length : 0);
-            console.log('📋 追加承認者_発注_Line存在チェック:', !!record['追加承認者_発注_Line']);
-            
-            if (approverTable && approverTable.value && record['追加承認者_発注_Line']) {
-                console.log('✅ 追加承認者_発注時TBと追加承認者_発注_Lineが存在します');
-                const approverNames = [];
-                
-                approverTable.value.forEach(function(row, index) {
-                    console.log('📋 行' + (index + 1) + 'の処理開始');
-                    console.log('📋 行' + (index + 1) + 'の全フィールド:', Object.keys(row.value));
-                    console.log('📋 行' + (index + 1) + 'の値:', row.value);
-                    
-                    if (row.value['追加承認者_発注']) {
-                        const field = row.value['追加承認者_発注'];
-                        console.log('📋 行' + (index + 1) + ' 追加承認者_発注フィールド:', field);
-                        console.log('📋 行' + (index + 1) + ' フィールドタイプ:', field.type);
-                        console.log('📋 行' + (index + 1) + ' フィールド値:', field.value);
-                        
-                        if (field.value) {
-                            let approverName = '';
-                            
-                            // ユーザー選択フィールドの場合
-                            if (field.type === 'USER_SELECT') {
-                                console.log('📋 行' + (index + 1) + ' USER_SELECTフィールドとして処理');
-                                if (Array.isArray(field.value)) {
-                                    console.log('📋 行' + (index + 1) + ' 配列形式:', field.value);
-                                    approverName = field.value.map(function(user) {
-                                        console.log('📋 ユーザー情報:', user);
-                                        return user.name || user.code;
-                                    }).join(',');
-                                } else if (field.value.name) {
-                                    console.log('📋 行' + (index + 1) + ' オブジェクト形式 (name):', field.value.name);
-                                    approverName = field.value.name;
-                                } else {
-                                    console.log('📋 行' + (index + 1) + ' 文字列形式:', field.value);
-                                    approverName = field.value;
-                                }
-                            } else {
-                                // 通常のテキストフィールドやドロップダウンの場合
-                                console.log('📋 行' + (index + 1) + ' テキスト/ドロップダウンとして処理');
-                                approverName = field.value;
-                            }
-                            
-                            console.log('📋 行' + (index + 1) + ' 取得した承認者名:', approverName);
-                            
-                            if (approverName) {
-                                approverNames.push(approverName);
-                                console.log('✅ 行' + (index + 1) + ' 承認者名を追加:', approverName);
-                            } else {
-                                console.log('⚠️ 行' + (index + 1) + ' 承認者名が空です');
-                            }
-                        } else {
-                            console.log('⚠️ 行' + (index + 1) + ' 追加承認者_発注の値がありません');
-                        }
-                    } else {
-                        console.log('⚠️ 行' + (index + 1) + ' 追加承認者_発注フィールドが存在しません');
-                    }
-                });
-                
-                // →で連結
-                const newLineValue = approverNames.join('→');
-                console.log('📋 収集した承認者名リスト:', approverNames);
-                console.log('📋 連結後の値:', newLineValue);
-                console.log('📋 現在の追加承認者_発注_Lineの値:', record['追加承認者_発注_Line'].value);
-                
-                if (record['追加承認者_発注_Line'].value !== newLineValue) {
-                    record['追加承認者_発注_Line'].value = newLineValue;
-                    hasChanges = true;
-                    console.log('✅ 追加承認者_発注_Lineを更新しました:', newLineValue);
-                } else {
-                    console.log('ℹ️ 追加承認者_発注_Lineは既に同じ値です');
-                }
-            } else {
-                if (!approverTable) {
-                    console.log('⚠️ 追加承認者_発注時TBフィールドが存在しません');
-                } else if (!approverTable.value) {
-                    console.log('⚠️ 追加承認者_発注時TBが空です');
-                } else if (!record['追加承認者_発注_Line']) {
-                    console.log('⚠️ 追加承認者_発注_Lineフィールドが存在しません');
-                }
-            }
-            
             // 変更があった場合のみレコードを更新
             if (hasChanges) {
                 console.log('🔄 レコード更新処理を開始します (hasChanges = true)');
@@ -539,23 +451,10 @@
                     latestRecord['費用CD_TBL1'].value = record['費用CD_TBL1'].value;
                     console.log('📋 費用CD_TBL1をマージ:', record['費用CD_TBL1'].value);
                 }
-                if (record['追加承認者_発注_Line']) {
-                    latestRecord['追加承認者_発注_Line'].value = record['追加承認者_発注_Line'].value;
-                    console.log('📋 追加承認者_発注_Lineをマージ:', record['追加承認者_発注_Line'].value);
-                    console.log('📋 マージ後のlatestRecordの追加承認者_発注_Line:', latestRecord['追加承認者_発注_Line'].value);
-                }
-                
                 console.log('📋 kintone.app.record.set()を実行します');
-                console.log('📋 設定する追加承認者_発注_Lineの値:', latestRecord['追加承認者_発注_Line'] ? latestRecord['追加承認者_発注_Line'].value : 'フィールドなし');
                 
                 kintone.app.record.set({ record: latestRecord });
                 console.log('✅ kintone.app.record.set()を実行しました');
-                
-                // 設定後に確認
-                setTimeout(function() {
-                    const verifyRecord = kintone.app.record.get().record;
-                    console.log('🔍 設定後の確認: 追加承認者_発注_Line =', verifyRecord['追加承認者_発注_Line'] ? verifyRecord['追加承認者_発注_Line'].value : 'フィールドなし');
-                }, 100);
                 
             } else {
                 console.log('ℹ️ 更新する項目がありませんでした (hasChanges = false)');
@@ -1878,31 +1777,7 @@
     kintone.events.on(['app.record.create.submit', 'app.record.edit.submit'], function(event) {
         console.log('📋 レコード保存時のバリデーションを実行します');
         
-        // 保存前に追加承認者_発注_Lineなどを更新（event.recordを直接変更）
-        console.log('📋 保存前に追加承認者_発注_Line等を更新します');
-        
         const record = event.record;
-        
-        // 追加承認者_発注時TBから追加承認者_発注_Lineを生成
-        if (record['追加承認者_発注時TB'] && record['追加承認者_発注_Line']) {
-            const approverTable = record['追加承認者_発注時TB'];
-            const approverNames = [];
-            
-            if (approverTable.value && approverTable.value.length > 0) {
-                approverTable.value.forEach(function(row) {
-                    const field = row.value['追加承認者_発注'];
-                    if (field && field.value) {
-                        approverNames.push(field.value);
-                    }
-                });
-                
-                if (approverNames.length > 0) {
-                    const newLineValue = approverNames.join('→');
-                    record['追加承認者_発注_Line'].value = newLineValue;
-                    console.log('✅ 追加承認者_発注_Lineを設定しました:', newLineValue);
-                }
-            }
-        }
         
         // サブテーブルの1行目から各フィールドをコピー
         const subtableData = record[CONFIG.subtableFieldCode];
@@ -2027,90 +1902,6 @@
                 }
                 
                 console.log('✅ Checkフィールドをクリアしました');
-            }
-            
-            // ==========================================
-            // 📝 支払い承認フローチェックによる追加承認者_支払_Lineの制御
-            // ==========================================
-            console.log('🔍 支払い承認フロー処理を開始します');
-            console.log('🔍 利用可能なフィールド:', Object.keys(record));
-            
-            const approvalFlowCheck = record['支払い承認フローチェック'];
-            console.log('🔍 支払い承認フローチェックフィールド:', approvalFlowCheck);
-            console.log('🔍 支払い承認フローチェック値:', approvalFlowCheck ? approvalFlowCheck.value : 'フィールドなし');
-            
-            if (approvalFlowCheck && record['追加承認者_支払_Line']) {
-                const isChecked = Array.isArray(approvalFlowCheck.value) && 
-                                approvalFlowCheck.value.includes('発注時と同じ承認フロー');
-                
-                console.log('📋 支払い承認フローチェック:', isChecked ? 'チェックあり' : 'チェックなし');
-                console.log('📋 チェックボックスの値:', approvalFlowCheck.value);
-                
-                if (isChecked) {
-                    // チェックが入っている場合: 追加承認者_発注_Lineをコピー
-                    if (record['追加承認者_発注_Line']) {
-                        const sourceValue = record['追加承認者_発注_Line'].value || '';
-                        record['追加承認者_支払_Line'].value = sourceValue;
-                        console.log('✅ 追加承認者_発注_Lineを追加承認者_支払_Lineにコピーしました:', sourceValue);
-                    } else {
-                        console.log('⚠ 追加承認者_発注_Lineフィールドが見つかりません');
-                    }
-                } else {
-                    // チェックが入っていない場合: 追加承認者_支払TBから生成
-                    console.log('📋 追加承認者_支払TBから生成します');
-                    const paymentApproverTable = record['追加承認者_支払TB'];
-                    console.log('📋 追加承認者_支払TB:', paymentApproverTable);
-                    console.log('📋 追加承認者_支払TB行数:', paymentApproverTable && paymentApproverTable.value ? paymentApproverTable.value.length : 0);
-                    
-                    if (paymentApproverTable && paymentApproverTable.value) {
-                        const paymentApproverNames = [];
-                        
-                    paymentApproverTable.value.forEach(function(row, index) {
-                        console.log('📋 行' + (index + 1) + 'の値:', row.value);
-                        if (row.value['追加承認者_支払い'] && row.value['追加承認者_支払い'].value) {
-                            const field = row.value['追加承認者_支払い'];
-                            console.log('📋 行' + (index + 1) + 'フィールド:', field);
-                            let approverName = '';
-                            
-                            // ユーザー選択フィールドの場合
-                            if (field.type === 'USER_SELECT') {
-                                if (Array.isArray(field.value)) {
-                                    approverName = field.value.map(function(user) {
-                                        return user.name || user.code;
-                                    }).join(',');
-                                } else if (field.value.name) {
-                                    approverName = field.value.name;
-                                } else {
-                                    approverName = field.value;
-                                }
-                            } else {
-                                // 通常のテキストフィールドやドロップダウンの場合
-                                approverName = field.value;
-                            }
-                            
-                            if (approverName) {
-                                console.log('📋 行' + (index + 1) + '承認者名:', approverName);
-                                paymentApproverNames.push(approverName);
-                            }
-                        }
-                    });                        // →で連結
-                        const newLineValue = paymentApproverNames.join('→');
-                        console.log('📋 生成された承認者リスト:', paymentApproverNames);
-                        console.log('📋 連結後の値:', newLineValue);
-                        record['追加承認者_支払_Line'].value = newLineValue;
-                        console.log('✅ 追加承認者_支払TBから追加承認者_支払_Lineを生成しました:', newLineValue);
-                    } else {
-                        console.log('⚠ 追加承認者_支払TBが空またはフィールドが見つかりません');
-                        record['追加承認者_支払_Line'].value = '';
-                    }
-                }
-            } else {
-                if (!approvalFlowCheck) {
-                    console.log('⚠ 支払い承認フローチェックフィールドが見つかりません');
-                }
-                if (!record['追加承認者_支払_Line']) {
-                    console.log('⚠ 追加承認者_支払_Lineフィールドが見つかりません');
-                }
             }
             
         } catch (error) {

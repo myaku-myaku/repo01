@@ -22,7 +22,8 @@
  * 3. メールフィールドセット（Step3）
  *    - メールプレビュー確認後、「メールフィールドセット」ボタンで
  *      Boost! Mail プラグイン用フィールドへ値を書き込む。
- *    - 請求書_ML: 当日行の請求書_支払tblから重複除去したファイルをREST APIでコピー。
+ *    - 支払依頼メールCC / 件名 / 本文 / 添付: REST API PUT でセット（Toは参照元のため除外）。
+ *    - 添付: 当日行の請求書_支払tblから重複除去 + 複数行時はCSVも生成。
  *    - プロセスアクション前に実行し、プラグインが読み取れるようにする。
  *
  * 【依存】なし（Kintone JS API のみ使用）
@@ -61,10 +62,10 @@
         PAYMENT_DATE_FIELD: '支払依頼日_支払tbl',   // 日付 YYYY-MM-DD
 
         // メールテンプレート: レコード直下のフィールド
-        MAIL_TO_FIELD: '支払依頼メール送信先',
-        MAIL_CC_FIELD: 'レコード作成者アドレス',
+        MAIL_TO_FIELD: '支払依頼メールTo',       // Boost! Mail 用（手動入力、セット対象外）
+        FIXED_CC_ADDRESS: 'SNC-bd-s@sony.com',  // CC固定アドレス
         RECORD_NO_FIELD: 'レコード番号',
-        SUBJECT_TITLE_FIELD: '伝票案件名MLタイトル',
+        // SUBJECT_TITLE_FIELD: '伝票案件名MLタイトル',  // ← 廃止予定: サブテーブルの TBL_ITEM_NAME を使用
         DEPT_FIELD: '依頼部門',
         REQUESTER_FIELD: '支払い依頼者',
         PO_NO_FIELD: '発注番号_G番号',
@@ -83,7 +84,10 @@
 
         // ---------- Step3: メールフィールドセット ----------
         PROCESS_ACTION: '支払完了→クローズ',
-        ML_ATTACHMENT_FIELD: '請求書_ML',   // プラグイン用: メール添付ファイル（FILE型）
+        ML_CC_FIELD: '支払依頼メールCC',          // 文字列1行
+        ML_SUBJECT_FIELD: '支払依頼メール件名',      // 文字列1行
+        ML_BODY_FIELD: '支払依頼メール本文',        // 複数行テキスト
+        ML_ATTACHMENT_FIELD: '支払依頼メール添付',    // 添付ファイル（FILE型）
         SET_ML_BUTTON_ID: 'payment_set_ml_btn',
         SET_ML_BUTTON_LABEL: 'メールフィールドセット',
 
@@ -135,6 +139,17 @@
         var val = row.value[fieldCode].value;
         if (val === null || val === undefined) return '';
         return String(val);
+    }
+
+    /** YYYY-MM-DD を YYYY年M月D日 に変換 */
+    function formatDateJP(dateStr) {
+        if (!dateStr) return '';
+        var parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        var y = parts[0];
+        var m = parseInt(parts[1], 10);
+        var d = parseInt(parts[2], 10);
+        return y + '年' + m + '月' + d + '日';
     }
 
     /**
@@ -324,12 +339,15 @@
      * @param {Object} record  - kintone レコード
      * @param {Object} todayRow - 支払い金額テーブルの当日先頭行
      */
-    function buildMailPreview(record, todayRow, allTodayRows, ccEmail) {
+    function buildMailPreview(record, todayRow, allTodayRows, loginEmail) {
         // レコード直下のフィールド
         var to = getFieldValue(record, CONFIG.MAIL_TO_FIELD);
-        var cc = ccEmail || getFieldValue(record, CONFIG.MAIL_CC_FIELD);
+        // CC: ログインユーザーのメールアドレス + 固定アドレス
+        var ccParts = [];
+        if (loginEmail) ccParts.push(loginEmail);
+        ccParts.push(CONFIG.FIXED_CC_ADDRESS);
+        var cc = ccParts.join(', ');
         var recNo = getFieldValue(record, CONFIG.RECORD_NO_FIELD);
-        var subjectTitle = getFieldValue(record, CONFIG.SUBJECT_TITLE_FIELD);
         var dept = getFieldValue(record, CONFIG.DEPT_FIELD);
         var requester = getFieldValue(record, CONFIG.REQUESTER_FIELD);
         var poNo = getFieldValue(record, CONFIG.PO_NO_FIELD);
@@ -380,7 +398,8 @@
         }
         console.log('[payment-helper] 添付ファイル（重複除去後）:', allFiles.length + '件', attachNames);
 
-        var subject = '【支払依頼】[' + recNo + ']' + subjectTitle;
+        // 件名: サブテーブルの伝票案件名を使用（伝票案件名MLタイトルは廃止予定）
+        var subject = '【支払依頼】[' + recNo + ']' + itemName;
 
         var body = [
             'ご担当者様',
@@ -390,7 +409,7 @@
             '添付の支払処理をお願い致します。',
             '--------------------------------------',
             '■支払依頼メモ',
-            '支払期日  ：' + paymentDue,
+            '支払期日  ：' + formatDateJP(paymentDue),
             '支払内容  ：' + itemName,
             '発注WF番号：' + poNo,
             '決裁番号  ：' + approvalNo,
@@ -425,17 +444,16 @@
         }).then(function (resp) {
             console.log('[payment-helper] REST API でレコード取得成功');
             var record = resp.record;
-            // 支払い依頼者のメールアドレスを User API で取得
-            var reqField = record[CONFIG.REQUESTER_FIELD];
-            if (reqField && reqField.value && reqField.value.length > 0) {
-                var userCode = reqField.value[0].code;
-                return kintone.api('/v1/users.json', 'GET', { codes: [userCode] })
+            // ログインユーザーのメールアドレスを User API で取得
+            var loginUser = kintone.getLoginUser();
+            if (loginUser && loginUser.code) {
+                return kintone.api('/v1/users.json', 'GET', { codes: [loginUser.code] })
                     .then(function (userResp) {
                         var email = '';
                         if (userResp.users && userResp.users.length > 0) {
                             email = userResp.users[0].email || '';
                         }
-                        console.log('[payment-helper] 支払い依頼者メール:', email);
+                        console.log('[payment-helper] ログインユーザーメール:', email);
                         doShowMailPreview(record, email);
                     }).catch(function (uerr) {
                         console.warn('[payment-helper] User API 取得失敗:', uerr);
@@ -520,7 +538,7 @@
             setMlBtn.addEventListener('click', function () {
                 setMlBtn.disabled = true;
                 setMlBtn.innerText = '処理中...';
-                setMailFields(record).then(function () {
+                setMailFields(record, mail).then(function () {
                     setMlBtn.innerText = 'セット完了 ✓（リロード中…）';
                     setMlBtn.style.background = '#27ae60';
                     // PUT でリビジョンが進むため、ページをリロードして反映
@@ -549,6 +567,55 @@
 
         console.log('[payment-helper] メールプレビュー表示 (当日行: ' + todayRows.length + '件)');
     }
+
+    // =============================================
+    // サブテーブル行追加時に上の行をコピー
+    // =============================================
+    var _prevRowCount = -1; // 前回の行数を記録
+
+    // 画面表示時に初期行数を記録
+    kintone.events.on([
+        'app.record.edit.show',
+        'app.record.create.show'
+    ], function (event) {
+        var tbl = event.record[CONFIG.TARGET_SUBTABLE];
+        _prevRowCount = (tbl && tbl.value) ? tbl.value.length : 0;
+        console.log('[payment-helper] サブテーブル初期行数:', _prevRowCount);
+        return event;
+    });
+
+    // サブテーブル変更時
+    kintone.events.on([
+        'app.record.edit.change.' + CONFIG.TARGET_SUBTABLE,
+        'app.record.create.change.' + CONFIG.TARGET_SUBTABLE
+    ], function (event) {
+        var rows = event.record[CONFIG.TARGET_SUBTABLE].value;
+        var currentCount = rows.length;
+
+        // 行が増えた場合のみコピー（＋ボタンで追加）
+        if (currentCount > _prevRowCount && currentCount >= 2) {
+            var lastRow = rows[currentCount - 1];
+            var prevRow = rows[currentCount - 2];
+
+            // 前の行の値をコピー（FILE型・システムフィールドを除く）
+            Object.keys(prevRow.value).forEach(function (key) {
+                var prevCell = prevRow.value[key];
+                var lastCell = lastRow.value[key];
+                if (!prevCell || !lastCell || !prevCell.type) return;
+                // システムフィールドはスキップ
+                if (prevCell.type === 'RECORD_NUMBER' || prevCell.type === 'CREATOR' ||
+                    prevCell.type === 'MODIFIER' || prevCell.type === 'CREATED_TIME' ||
+                    prevCell.type === 'UPDATED_TIME' || prevCell.type === 'CALC') return;
+                // FILE 型はコピーしない
+                if (prevCell.type === 'FILE') return;
+                lastCell.value = prevCell.value;
+            });
+            console.log('[payment-helper] サブテーブル行追加: 前行の値をコピー (' + _prevRowCount + ' → ' + currentCount + ')');
+        }
+
+        _prevRowCount = currentCount;
+        return event;
+    });
 
     // =============================================
     // ボタン配置
@@ -700,17 +767,19 @@
     }
 
     /**
-     * REST API PUT で請求書_ML に添付ファイルをセットする
-     * ファイルを再アップロードして新 fileKey を取得してから PUT する
-     * 当日行が複数ある場合は CSV ファイルも生成して添付する
+     * REST API PUT でメール用フィールド（4フィールド）をセットする
+     * - 支払依頼メールCC / 件名 / 本文: テキストフィールド
+     * - 支払依頼メール添付: ファイル再アップロード + CSV生成
+     * ※ 支払依頼メールTo はプレビュー参照元のため書き込み対象外
      * @param {Object} record - kintone レコード
+     * @param {Object} mail   - buildMailPreview の戻り値 {to, cc, subject, body}
      * @returns {Promise}
      */
-    function setMailFields(record) {
+    function setMailFields(record, mail) {
         var attachFiles = collectTodayAttachments(record);
         var todayRows = getTodayRows(record);
 
-        console.log('[payment-helper] 請求書_ML セット開始: 添付 ' + attachFiles.length + ' 件, 当日行 ' + todayRows.length + ' 行');
+        console.log('[payment-helper] メールフィールドセット開始: 添付 ' + attachFiles.length + ' 件, 当日行 ' + todayRows.length + ' 行');
 
         // 請求書ファイルを再アップロード
         var uploadPromises = attachFiles.map(function (f) {
@@ -729,8 +798,7 @@
         }
 
         if (uploadPromises.length === 0) {
-            console.log('[payment-helper] 添付ファイルなし、スキップ');
-            return kintone.Promise.resolve();
+            console.log('[payment-helper] 添付ファイルなし');
         }
 
         return kintone.Promise.all(uploadPromises).then(function (newFileKeys) {
@@ -745,11 +813,18 @@
                 id: recId,
                 record: {}
             };
+
+            // テキストフィールド（3フィールド）※ To は参照元のため除外
+            body.record[CONFIG.ML_CC_FIELD] = { value: mail.cc };
+            body.record[CONFIG.ML_SUBJECT_FIELD] = { value: mail.subject };
+            body.record[CONFIG.ML_BODY_FIELD] = { value: mail.body };
+
+            // 添付ファイル
             body.record[CONFIG.ML_ATTACHMENT_FIELD] = { value: fileKeyValues };
 
             return kintone.api(kintone.api.url('/k/v1/record', true), 'PUT', body);
         }).then(function () {
-            console.log('[payment-helper] 請求書_ML セット完了（REST API）: ' + uploadPromises.length + ' 件');
+            console.log('[payment-helper] メールフィールドセット完了（REST API）');
         });
     }
 
