@@ -2,6 +2,9 @@
 # macOS
 .DS_Store
 
+# IDE
+.vscode/
+
 # ダウンロードしたライブラリ（Kintone JSカスタマイズ用）
 160.Orderflow/jspdf.umd.min.js
 160.Orderflow/ipaexg-font.js
