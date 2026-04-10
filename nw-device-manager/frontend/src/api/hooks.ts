@@ -3,6 +3,7 @@ import apiClient from "./client";
 import type {
   HostDetail,
   ModelStats,
+  RateStatsData,
   RegionStatsData,
   SummaryStats,
   TreeHost,
@@ -129,16 +130,29 @@ export function useSummaryStats() {
   });
 }
 
-export function useModelStats() {
+export function useModelStats(rate?: string | null) {
   return useQuery<ModelStats[]>({
-    queryKey: ["stats", "byModel"],
-    queryFn: () => apiClient.get("/statistics/by-model").then((r) => r.data),
+    queryKey: ["stats", "byModel", rate ?? "all"],
+    queryFn: () =>
+      apiClient
+        .get("/statistics/by-model", { params: rate ? { rate } : undefined })
+        .then((r) => r.data),
   });
 }
 
-export function useRegionStats() {
+export function useRegionStats(rate?: string | null) {
   return useQuery<RegionStatsData[]>({
-    queryKey: ["stats", "byRegion"],
-    queryFn: () => apiClient.get("/statistics/by-region").then((r) => r.data),
+    queryKey: ["stats", "byRegion", rate ?? "all"],
+    queryFn: () =>
+      apiClient
+        .get("/statistics/by-region", { params: rate ? { rate } : undefined })
+        .then((r) => r.data),
+  });
+}
+
+export function useRateStats() {
+  return useQuery<RateStatsData[]>({
+    queryKey: ["stats", "byRate"],
+    queryFn: () => apiClient.get("/statistics/by-rate").then((r) => r.data),
   });
 }

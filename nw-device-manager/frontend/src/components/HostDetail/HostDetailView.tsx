@@ -6,7 +6,6 @@ import {
   Input,
   message,
   Modal,
-  Table,
   Tabs,
   Tag,
 } from "antd";
@@ -19,6 +18,7 @@ import {
   useUpdatePort,
 } from "@/api/hooks";
 import type { PortData, SlotData } from "@/types";
+import ResizableTable from "@/components/ResizableTable";
 
 const usageStatusColors: Record<string, string> = {
   available: "green",
@@ -70,8 +70,8 @@ export default function HostDetailView({ hostId }: Props) {
 
   const slotColumns: ColumnsType<SlotData> = [
     { title: "スロット番号", dataIndex: "slot_number", width: 120 },
-    { title: "ボード名", dataIndex: "board_name" },
-    { title: "ボードタイプ", dataIndex: "board_type" },
+    { title: "ボード名", dataIndex: "board_name", width: 200 },
+    { title: "ボードタイプ", dataIndex: "board_type", width: 200 },
     {
       title: "ステータス",
       dataIndex: "status",
@@ -86,10 +86,10 @@ export default function HostDetailView({ hostId }: Props) {
   ];
 
   const portColumns: ColumnsType<PortData> = [
-    { title: "ポート番号", dataIndex: "port_number", width: 100 },
-    { title: "ポート名", dataIndex: "port_name", ellipsis: true },
+    { title: "ポート番号", dataIndex: "port_number", width: 120 },
+    { title: "ポート名", dataIndex: "port_name", width: 200, ellipsis: true },
     { title: "タイプ", dataIndex: "port_type", width: 100 },
-    { title: "レート", dataIndex: "port_rate", width: 100 },
+    { title: "レート", dataIndex: "port_rate", width: 120 },
     {
       title: "ステータス",
       dataIndex: "usage_status",
@@ -101,6 +101,7 @@ export default function HostDetailView({ hostId }: Props) {
     {
       title: "ディスクリプション",
       dataIndex: "description",
+      width: 200,
       ellipsis: true,
       render: (text: string | null, record: PortData) => (
         <span
@@ -178,7 +179,7 @@ export default function HostDetailView({ hostId }: Props) {
               key: "slots",
               label: `スロット一覧 (${host.slots.length})`,
               children: (
-                <Table
+                <ResizableTable
                   columns={slotColumns}
                   dataSource={host.slots}
                   rowKey="id"
@@ -191,7 +192,7 @@ export default function HostDetailView({ hostId }: Props) {
               key: "ports",
               label: `ポート一覧 (${allPorts.length})`,
               children: (
-                <Table
+                <ResizableTable
                   columns={portColumns}
                   dataSource={allPorts}
                   rowKey="id"

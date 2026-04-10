@@ -13,6 +13,7 @@ export default function DeviceTree({ onSelectHost }: Props) {
   const { data: regions, isLoading } = useRegionTree();
   const [officeData, setOfficeData] = useState<Record<number, DataNode[]>>({});
   const [hostData, setHostData] = useState<Record<number, DataNode[]>>({});
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
   const buildTreeData = useCallback((): DataNode[] => {
     if (!regions) return [];
@@ -58,13 +59,21 @@ export default function DeviceTree({ onSelectHost }: Props) {
       const nodes: DataNode[] = data.map(
         (host: { id: number; hostname: string; model: string | null; vendor: string | null }) => ({
           key: `h-${host.id}`,
-          title: `${host.hostname}${host.model ? ` [${host.model}]` : ""}`,
+          title: (
+            <span>
+              <span style={{ whiteSpace: "nowrap" }}>{host.hostname}</span>
+              {host.model && (
+                <span style={{ display: "block", color: "#888", fontSize: 11, lineHeight: "16px", whiteSpace: "nowrap", paddingLeft: "4ch" }}>
+                  {host.model}
+                </span>
+              )}
+            </span>
+          ),
           icon: <CloudServerOutlined />,
           isLeaf: true,
         })
       );
       setHostData((prev) => ({ ...prev, [officeId]: nodes }));
-      // Update the office node's children
       setOfficeData((prev) => {
         const updated = { ...prev };
         for (const prefId of Object.keys(updated)) {
@@ -84,6 +93,11 @@ export default function DeviceTree({ onSelectHost }: Props) {
     const key = String(keys[0]);
     if (key.startsWith("h-")) {
       onSelectHost(Number(key.split("-")[1]));
+    } else {
+      // Toggle expand/collapse for non-leaf nodes
+      setExpandedKeys((prev) =>
+        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      );
     }
   };
 
@@ -94,6 +108,8 @@ export default function DeviceTree({ onSelectHost }: Props) {
       showIcon
       treeData={buildTreeData()}
       loadData={onLoadData}
+      expandedKeys={expandedKeys}
+      onExpand={(keys) => setExpandedKeys(keys)}
       onSelect={onSelect}
       style={{ background: "#fff", padding: 8 }}
     />

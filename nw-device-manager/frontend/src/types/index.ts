@@ -99,3 +99,12 @@ export interface RegionStatsData {
   available_ports: number;
   utilization_pct: number;
 }
+
+export interface RateStatsData {
+  rate_category: string;
+  total_ports: number;
+  available_ports: number;
+  in_use_ports: number;
+  reserved_ports: number;
+  utilization_pct: number;
+}

@@ -57,7 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }}
         />
       </Header>
-      <Content style={{ padding: 16, background: "#f0f2f5" }}>{children}</Content>
+      <Content style={{ padding: 16, background: "#f0f2f5", overflow: "hidden" }}>{children}</Content>
     </Layout>
   );
 }
