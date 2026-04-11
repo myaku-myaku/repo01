@@ -28,6 +28,15 @@ class RegionStats(BaseModel):
     utilization_pct: float
 
 
+class BoardStats(BaseModel):
+    board_name: str | None
+    slot_count: int
+    total_ports: int
+    available_ports: int
+    in_use_ports: int
+    utilization_pct: float
+
+
 class RateStats(BaseModel):
     rate_category: str
     total_ports: int

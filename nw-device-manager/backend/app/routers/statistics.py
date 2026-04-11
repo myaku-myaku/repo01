@@ -12,7 +12,7 @@ from app.models.port import Port, UsageStatus
 from app.models.prefecture import Prefecture
 from app.models.region import Region
 from app.models.slot import Slot
-from app.schemas.statistics import ModelStats, RateStats, RegionStats, SummaryStats
+from app.schemas.statistics import BoardStats, ModelStats, RateStats, RegionStats, SummaryStats
 
 router = APIRouter(prefix="/statistics", tags=["statistics"])
 
@@ -202,6 +202,37 @@ async def get_stats_by_region(
             host_count=r.host_count,
             total_ports=r.total_ports,
             available_ports=r.available_ports or 0,
+            utilization_pct=round((1 - (r.available_ports or 0) / r.total_ports) * 100, 1) if r.total_ports > 0 else 0,
+        )
+        for r in rows
+    ]
+
+
+@router.get("/by-board", response_model=list[BoardStats])
+async def get_stats_by_board(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    result = await db.execute(
+        select(
+            Slot.board_name,
+            func.count(Slot.id).label("slot_count"),
+            func.count(Port.id).label("total_ports"),
+            func.sum(case((Port.usage_status == UsageStatus.AVAILABLE, 1), else_=0)).label("available_ports"),
+            func.sum(case((Port.usage_status == UsageStatus.IN_USE, 1), else_=0)).label("in_use_ports"),
+        )
+        .outerjoin(Port, Port.slot_id == Slot.id)
+        .group_by(Slot.board_name)
+        .order_by(func.count(Slot.id).desc())
+    )
+    rows = result.all()
+    return [
+        BoardStats(
+            board_name=r.board_name,
+            slot_count=r.slot_count,
+            total_ports=r.total_ports,
+            available_ports=r.available_ports or 0,
+            in_use_ports=r.in_use_ports or 0,
             utilization_pct=round((1 - (r.available_ports or 0) / r.total_ports) * 100, 1) if r.total_ports > 0 else 0,
         )
         for r in rows

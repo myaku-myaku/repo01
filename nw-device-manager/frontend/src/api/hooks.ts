@@ -157,6 +157,22 @@ export function useRateStats() {
   });
 }
 
+export interface BoardStatsData {
+  board_name: string | null;
+  slot_count: number;
+  total_ports: number;
+  available_ports: number;
+  in_use_ports: number;
+  utilization_pct: number;
+}
+
+export function useBoardStats() {
+  return useQuery<BoardStatsData[]>({
+    queryKey: ["stats", "byBoard"],
+    queryFn: () => apiClient.get("/statistics/by-board").then((r) => r.data),
+  });
+}
+
 // Office device list
 export interface OfficeDeviceRow {
   office_id: number;

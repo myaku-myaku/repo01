@@ -1,4 +1,4 @@
-import { Button, Card, Input, Select, Space } from "antd";
+import { Button, Card, Input, Select, Space, Table } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useMemo, useState } from "react";
@@ -27,6 +27,7 @@ export default function OfficeListPage() {
   const { data, isLoading } = useOfficeDeviceList();
   const [search, setSearch] = useState("");
   const [regionFilter, setRegionFilter] = useState<string>("");
+  const [prefectureFilter, setPrefectureFilter] = useState<string>("");
 
   const regions = useMemo(() => {
     if (!data) return [];
@@ -34,11 +35,24 @@ export default function OfficeListPage() {
     return Array.from(set);
   }, [data]);
 
+  const prefectures = useMemo(() => {
+    if (!data) return [];
+    let offices = data.offices;
+    if (regionFilter) {
+      offices = offices.filter((o) => o.region === regionFilter);
+    }
+    const set = new Set(offices.map((o) => o.prefecture));
+    return Array.from(set).sort();
+  }, [data, regionFilter]);
+
   const filteredData = useMemo(() => {
     if (!data) return [];
     let rows = data.offices;
     if (regionFilter) {
       rows = rows.filter((o) => o.region === regionFilter);
+    }
+    if (prefectureFilter) {
+      rows = rows.filter((o) => o.prefecture === prefectureFilter);
     }
     if (search) {
       const q = search.toLowerCase();
@@ -50,7 +64,20 @@ export default function OfficeListPage() {
       );
     }
     return rows;
-  }, [data, search, regionFilter]);
+  }, [data, search, regionFilter, prefectureFilter]);
+
+  const summaryTotals = useMemo(() => {
+    if (!data) return { total: 0, models: {} as Record<string, number> };
+    let total = 0;
+    const models: Record<string, number> = {};
+    for (const row of filteredData) {
+      total += row.total_hosts;
+      for (const m of data.models) {
+        models[m] = (models[m] || 0) + (row.models[m] || 0);
+      }
+    }
+    return { total, models };
+  }, [data, filteredData]);
 
   const handleDownload = useCallback(() => {
     if (!data) return;
@@ -71,6 +98,8 @@ export default function OfficeListPage() {
         v ? <span>{v}</span> : <span style={{ color: "#ccc" }}>-</span>,
     }));
   }, [data]);
+
+  const fixedColCount = 5;
 
   const columns: ColumnsType<OfficeDeviceRow> = useMemo(
     () => [
@@ -113,23 +142,40 @@ export default function OfficeListPage() {
     [modelColumns, regions]
   );
 
+  const filterLabel = regionFilter
+    ? prefectureFilter
+      ? `${regionFilter} / ${prefectureFilter}`
+      : regionFilter
+    : "全国";
+
   return (
     <Card
-      title="局舎別設置装置一覧"
+      title={`局舎別設置装置一覧（${filterLabel}: ${filteredData.length}局舎）`}
       extra={
         <Space>
           <Select
-            style={{ width: 140 }}
-            placeholder="地域"
+            style={{ width: 120 }}
+            placeholder="地方"
             allowClear
             value={regionFilter || undefined}
-            onChange={(v) => setRegionFilter(v || "")}
+            onChange={(v) => {
+              setRegionFilter(v || "");
+              setPrefectureFilter("");
+            }}
             options={regions.map((r) => ({ label: r, value: r }))}
+          />
+          <Select
+            style={{ width: 120 }}
+            placeholder="都道府県"
+            allowClear
+            value={prefectureFilter || undefined}
+            onChange={(v) => setPrefectureFilter(v || "")}
+            options={prefectures.map((p) => ({ label: p, value: p }))}
           />
           <Input.Search
             placeholder="局舎名・コードで検索"
             allowClear
-            style={{ width: 250 }}
+            style={{ width: 220 }}
             onSearch={setSearch}
             onChange={(e) => !e.target.value && setSearch("")}
           />
@@ -150,7 +196,25 @@ export default function OfficeListPage() {
         size="small"
         loading={isLoading}
         pagination={{ pageSize: 50, showSizeChanger: true, pageSizeOptions: ["50", "100", "200"] }}
-        scroll={{ x: "max-content" }}
+        scroll={{ x: "max-content", y: "calc(100vh - 280px)" }}
+        sticky
+        summary={() => (
+          <Table.Summary fixed="top">
+            <Table.Summary.Row style={{ background: "#fafafa" }}>
+              <Table.Summary.Cell index={0} colSpan={4} align="right">
+                <strong>合計</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={4} align="center">
+                <strong>{summaryTotals.total}</strong>
+              </Table.Summary.Cell>
+              {data?.models.map((m, i) => (
+                <Table.Summary.Cell key={m} index={fixedColCount + i} align="center">
+                  <strong>{summaryTotals.models[m] || 0}</strong>
+                </Table.Summary.Cell>
+              ))}
+            </Table.Summary.Row>
+          </Table.Summary>
+        )}
       />
     </Card>
   );

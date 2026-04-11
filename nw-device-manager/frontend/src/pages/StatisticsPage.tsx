@@ -1,13 +1,15 @@
 import { Card, Col, Progress, Row, Select, Statistic, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
-import { useModelStats, useRateStats, useRegionStats, useSummaryStats } from "@/api/hooks";
+import { useBoardStats, useModelStats, useRateStats, useRegionStats, useSummaryStats } from "@/api/hooks";
+import type { BoardStatsData } from "@/api/hooks";
 import type { ModelStats, RateStatsData, RegionStatsData } from "@/types";
 import ResizableTable from "@/components/ResizableTable";
 
 export default function StatisticsPage() {
   const { data: summary, isLoading: summaryLoading } = useSummaryStats();
   const { data: rateStats } = useRateStats();
+  const { data: boardStats } = useBoardStats();
   const [selectedRate, setSelectedRate] = useState<string | null>(null);
   const { data: modelStats } = useModelStats(selectedRate);
   const { data: regionStats } = useRegionStats(selectedRate);
@@ -57,6 +59,21 @@ export default function StatisticsPage() {
     { title: "空き", dataIndex: "available_ports", width: 80, sorter: (a, b) => a.available_ports - b.available_ports },
     { title: "使用中", dataIndex: "in_use_ports", width: 80, sorter: (a, b) => a.in_use_ports - b.in_use_ports },
     { title: "予約済", dataIndex: "reserved_ports", width: 80, sorter: (a, b) => a.reserved_ports - b.reserved_ports },
+    {
+      title: "利用率",
+      dataIndex: "utilization_pct",
+      width: 140,
+      sorter: (a, b) => a.utilization_pct - b.utilization_pct,
+      render: (v: number) => <Progress percent={v} size="small" />,
+    },
+  ];
+
+  const boardColumns: ColumnsType<BoardStatsData> = [
+    { title: "ボード名", dataIndex: "board_name", width: 180, sorter: (a, b) => (a.board_name || "").localeCompare(b.board_name || ""), render: (v: string | null) => v || "-" },
+    { title: "搭載数", dataIndex: "slot_count", width: 80, sorter: (a, b) => a.slot_count - b.slot_count, defaultSortOrder: "descend" },
+    { title: "総ポート数", dataIndex: "total_ports", width: 90, sorter: (a, b) => a.total_ports - b.total_ports },
+    { title: "空き", dataIndex: "available_ports", width: 80, sorter: (a, b) => a.available_ports - b.available_ports },
+    { title: "使用中", dataIndex: "in_use_ports", width: 80, sorter: (a, b) => a.in_use_ports - b.in_use_ports },
     {
       title: "利用率",
       dataIndex: "utilization_pct",
@@ -129,7 +146,7 @@ export default function StatisticsPage() {
         </Col>
       </Row>
 
-      <Row gutter={16}>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={14}>
           <Card title={`機種別統計${rateLabel}`}>
             <ResizableTable
@@ -149,6 +166,20 @@ export default function StatisticsPage() {
               rowKey="region_name"
               size="small"
               pagination={false}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={24}>
+          <Card title="ボード別統計">
+            <ResizableTable
+              columns={boardColumns}
+              dataSource={boardStats}
+              rowKey={(r) => r.board_name || "_none"}
+              size="small"
+              pagination={{ pageSize: 20, showSizeChanger: true }}
             />
           </Card>
         </Col>

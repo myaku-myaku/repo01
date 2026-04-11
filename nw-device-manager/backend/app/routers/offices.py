@@ -21,6 +21,13 @@ def _strip_code_prefix(name: str) -> str:
     return name
 
 
+def _strip_area_code(name: str) -> str:
+    """Remove leading area code letter like 'C東京' → '東京'."""
+    if len(name) >= 2 and name[0].isascii() and name[0].isalpha():
+        return name[1:]
+    return name
+
+
 @router.get("/device-list")
 async def get_office_device_list(
     db: AsyncSession = Depends(get_db),
@@ -45,7 +52,7 @@ async def get_office_device_list(
         "office_id": row.id,
         "office_name": _strip_code_prefix(row.name),
         "office_code": row.code,
-        "prefecture": row.prefecture_name,
+        "prefecture": _strip_area_code(row.prefecture_name),
         "region": row.region_name,
         "total_hosts": 0,
         "models": {},
