@@ -156,3 +156,41 @@ export function useRateStats() {
     queryFn: () => apiClient.get("/statistics/by-rate").then((r) => r.data),
   });
 }
+
+// Office device list
+export interface OfficeDeviceRow {
+  office_id: number;
+  office_name: string;
+  office_code: string;
+  prefecture: string;
+  region: string;
+  total_hosts: number;
+  models: Record<string, number>;
+}
+
+export interface OfficeDeviceListResponse {
+  models: string[];
+  offices: OfficeDeviceRow[];
+}
+
+export function useOfficeDeviceList() {
+  return useQuery<OfficeDeviceListResponse>({
+    queryKey: ["officeDeviceList"],
+    queryFn: () => apiClient.get("/offices/device-list").then((r) => r.data),
+  });
+}
+
+// Import logs
+export interface ImportVendorLog {
+  vendor: string;
+  filename: string;
+  file_exported_at: string | null;
+  imported_at: string | null;
+}
+
+export function useLatestImports() {
+  return useQuery<ImportVendorLog[]>({
+    queryKey: ["latestImports"],
+    queryFn: () => apiClient.get("/import/latest-by-vendor").then((r) => r.data),
+  });
+}

@@ -13,4 +13,4 @@ class Prefecture(Base):
     code: Mapped[str] = mapped_column(String(10), unique=True)
 
     region: Mapped["Region"] = relationship(back_populates="prefectures")
-    offices: Mapped[list["Office"]] = relationship(back_populates="prefecture", lazy="selectin")
+    offices: Mapped[list["Office"]] = relationship(back_populates="prefecture", lazy="noload")

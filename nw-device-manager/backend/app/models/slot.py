@@ -23,4 +23,4 @@ class Slot(Base):
     status: Mapped[SlotStatus] = mapped_column(Enum(SlotStatus), default=SlotStatus.EMPTY)
 
     host: Mapped["Host"] = relationship(back_populates="slots")
-    ports: Mapped[list["Port"]] = relationship(back_populates="slot", lazy="selectin", cascade="all, delete-orphan")
+    ports: Mapped[list["Port"]] = relationship(back_populates="slot", lazy="noload", cascade="all, delete-orphan")

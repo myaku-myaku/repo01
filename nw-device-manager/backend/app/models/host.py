@@ -26,4 +26,4 @@ class Host(Base):
     status: Mapped[HostStatus] = mapped_column(Enum(HostStatus), default=HostStatus.ACTIVE)
 
     office: Mapped["Office"] = relationship(back_populates="hosts")
-    slots: Mapped[list["Slot"]] = relationship(back_populates="host", lazy="selectin", cascade="all, delete-orphan")
+    slots: Mapped[list["Slot"]] = relationship(back_populates="host", lazy="noload", cascade="all, delete-orphan")

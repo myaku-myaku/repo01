@@ -9,16 +9,57 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.database import async_session
+from app.database import async_session, get_db
 from app.models.host import Host
 from app.models.office import Office
 from app.models.port import Port, UsageStatus
 from app.models.slot import Slot, SlotStatus
 from app.models.user import User
-from app.services.import_service import detect_vendor_format, parse_import_data, skip_metadata_rows
+from app.models.import_log import ImportLog
+from app.services.import_service import (
+    FORMAT_TO_VENDOR,
+    detect_vendor_format,
+    extract_file_datetime,
+    parse_import_data,
+    skip_metadata_rows,
+)
 from app.services.task_manager import ImportTask, TaskStatus, task_manager
 
 router = APIRouter(prefix="/import", tags=["import"])
+
+
+@router.get("/latest-by-vendor")
+async def get_latest_imports_by_vendor(
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """ベンダーごとの最新インポート情報を返す."""
+    from sqlalchemy import func as sqlfunc
+
+    # ベンダーごとに最新のimported_atを持つレコードを取得
+    subq = (
+        select(
+            ImportLog.vendor,
+            sqlfunc.max(ImportLog.id).label("max_id"),
+        )
+        .group_by(ImportLog.vendor)
+        .subquery()
+    )
+    result = await db.execute(
+        select(ImportLog)
+        .join(subq, ImportLog.id == subq.c.max_id)
+        .order_by(ImportLog.vendor)
+    )
+    logs = result.scalars().all()
+    return [
+        {
+            "vendor": log.vendor,
+            "filename": log.filename,
+            "file_exported_at": log.file_exported_at.isoformat() if log.file_exported_at else None,
+            "imported_at": log.imported_at.isoformat() if log.imported_at else None,
+        }
+        for log in logs
+    ]
 
 
 def _read_single_file(content: bytes, filename: str) -> pd.DataFrame | None:
@@ -69,7 +110,7 @@ async def upload_file(
         raise HTTPException(status_code=400, detail="対応形式: CSV, XLSX, ZIP")
 
     # Parse all files upfront (synchronous, fast)
-    all_batches: list[tuple[str, str, list[dict]]] = []
+    all_batches: list[tuple[str, str, list[dict], bytes]] = []
     for fname, fcontent in file_entries:
         df = _read_single_file(fcontent, fname)
         if df is None or df.empty:
@@ -78,14 +119,14 @@ async def upload_file(
         records = parse_import_data(df, vendor_format)
         if records:
             display_name = fname.rsplit("/", 1)[-1]
-            all_batches.append((display_name, vendor_format, records))
+            all_batches.append((display_name, vendor_format, records, fcontent))
 
     if not all_batches:
         raise HTTPException(status_code=400, detail="有効なレコードが見つかりませんでした。")
 
     # Create task and start background processing
     task = task_manager.create_task()
-    task.total_records = sum(len(r) for _, _, r in all_batches)
+    task.total_records = sum(len(r) for _, _, r, _ in all_batches)
     task.total = task.total_records
     task.status = TaskStatus.RUNNING
     task.message = "インポート開始..."
@@ -119,7 +160,7 @@ async def get_latest_task_status(
     return task.to_dict()
 
 
-async def _run_import(task: ImportTask, all_batches: list[tuple[str, str, list[dict]]]) -> None:
+async def _run_import(task: ImportTask, all_batches: list[tuple[str, str, list[dict], bytes]]) -> None:
     """Background import coroutine."""
     try:
         async with async_session() as db:
@@ -134,7 +175,7 @@ async def _run_import(task: ImportTask, all_batches: list[tuple[str, str, list[d
             task.phase = "importing"
             task.message = f"{file_count}ファイル, {total_records}件のレコードを処理します"
 
-            for file_idx, (fname, vformat, records) in enumerate(all_batches):
+            for file_idx, (fname, vformat, records, raw_content) in enumerate(all_batches):
                 task.message = f"[{file_idx + 1}/{file_count}] {fname} ({vformat}, {len(records)}件)"
 
                 for record in records:
@@ -204,12 +245,24 @@ async def _run_import(task: ImportTask, all_batches: list[tuple[str, str, list[d
                         task.message = f"[{file_idx + 1}/{file_count}] {fname} ... {processed}/{total_records}"
                         await asyncio.sleep(0)
 
+            # Record import logs per vendor
+            for fname, vformat, records, raw_content in all_batches:
+                vendor = FORMAT_TO_VENDOR.get(vformat, "Other")
+                file_dt = extract_file_datetime(raw_content, fname, vformat)
+                log = ImportLog(
+                    vendor=vendor,
+                    filename=fname,
+                    file_exported_at=file_dt,
+                    record_count=len(records),
+                )
+                db.add(log)
+
             task.phase = "committing"
             task.message = "データベースにコミット中..."
             task.current = total_records
             await db.commit()
 
-            formats = ", ".join(f"{fn}({vf})" for fn, vf, _ in all_batches)
+            formats = ", ".join(f"{fn}({vf})" for fn, vf, _ , _ in all_batches)
             task.status = TaskStatus.COMPLETE
             task.phase = "complete"
             task.message = f"インポート完了 ({formats})"

@@ -1,7 +1,50 @@
 import io
 import re
+from datetime import datetime
 
 import pandas as pd
+
+
+FORMAT_TO_VENDOR = {
+    "huawei_ltp": "Huawei",
+    "huawei_ne": "Huawei",
+    "zte_port": "ZTE",
+    "zte_optical": "ZTE",
+    "rbbn_ne": "Ribbon",
+    "rbbn_port": "Ribbon",
+    "rbbn_card": "Ribbon",
+    "rbbn_sfp": "Ribbon",
+    "generic": "Other",
+}
+
+
+def extract_file_datetime(content: bytes, filename: str, vendor_format: str) -> datetime | None:
+    """Extract export datetime from CSV content or filename."""
+    # 1. Huawei LTP: "Save Time: 2026-04-08 18:44:59" in header
+    if vendor_format.startswith("huawei"):
+        text = content.decode("utf-8", errors="replace")[:500]
+        m = re.search(r"Save Time:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})", text)
+        if m:
+            return datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+
+    # 2. Filename patterns: "20260408194853" or "2026-04-08_18-44-59"
+    m = re.search(r"(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})", filename)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                            int(m.group(4)), int(m.group(5)), int(m.group(6)))
+        except ValueError:
+            pass
+
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})[_T](\d{2})-(\d{2})-(\d{2})", filename)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                            int(m.group(4)), int(m.group(5)), int(m.group(6)))
+        except ValueError:
+            pass
+
+    return None
 
 
 def detect_vendor_format(df: pd.DataFrame) -> str:
@@ -140,7 +183,7 @@ def _parse_huawei_ltp(df: pd.DataFrame) -> list[dict]:
             "model": _safe_str(row.get("NE Type (MPU TYPE)")) or _safe_str(row.get("NE Type")),
             "ne_type": _safe_str(row.get("NE Type (MPU TYPE)")) or _safe_str(row.get("NE Type")),
             "slot_number": _safe_str(row.get("Slot Number")) or "0",
-            "board_name": _safe_str(row.get("Port Full Name")),
+            "board_name": _extract_board_from_port_full_name(row.get("Port Full Name")),
             "board_type": None,
             "port_number": _safe_str(row.get("Port Number")) or _safe_str(row.get("Port No")) or "0",
             "port_name": _safe_str(row.get("Port Name")) or _safe_str(row.get("Port Full Name")),
@@ -352,6 +395,21 @@ def _extract_slot_from_board(board_name) -> str:
         return "0"
     parts = str(board_name).strip().split("-")
     return parts[0] if parts else "0"
+
+
+def _extract_board_from_port_full_name(port_full_name) -> str | None:
+    """Extract board name from Port Full Name like '1-TPN1EX10S-1(// NNI to A201)' → 'TPN1EX10S'."""
+    if pd.isna(port_full_name):
+        return None
+    s = str(port_full_name).strip()
+    # Remove trailing description in parentheses
+    paren = s.find("(")
+    if paren > 0:
+        s = s[:paren]
+    parts = s.split("-")
+    if len(parts) >= 2:
+        return parts[1]
+    return str(port_full_name).strip()
 
 
 def _extract_slot_from_port_name(port_name) -> str:

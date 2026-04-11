@@ -1,5 +1,6 @@
 from app.models.audit_log import AuditLog
 from app.models.host import Host
+from app.models.import_log import ImportLog
 from app.models.office import Office
 from app.models.port import Port
 from app.models.prefecture import Prefecture
@@ -18,4 +19,5 @@ __all__ = [
     "PortReservation",
     "User",
     "AuditLog",
+    "ImportLog",
 ]

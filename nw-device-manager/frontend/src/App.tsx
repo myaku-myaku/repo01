@@ -7,6 +7,8 @@ import AppLayout from "@/components/Layout/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import DevicePage from "@/pages/DevicePage";
 import ImportPage from "@/pages/ImportPage";
+import OfficeListPage from "@/pages/OfficeListPage";
+import AdminPage from "@/pages/AdminPage";
 import StatisticsPage from "@/pages/StatisticsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -35,8 +37,10 @@ export default function App() {
               <AppLayout>
                 <Routes>
                   <Route path="/" element={<DevicePage />} />
+                  <Route path="/offices" element={<OfficeListPage />} />
                   <Route path="/statistics" element={<StatisticsPage />} />
                   <Route path="/import" element={<ImportPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </AppLayout>

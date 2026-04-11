@@ -14,4 +14,4 @@ class Office(Base):
     address: Mapped[str | None] = mapped_column(String(500))
 
     prefecture: Mapped["Prefecture"] = relationship(back_populates="offices")
-    hosts: Mapped[list["Host"]] = relationship(back_populates="office", lazy="selectin")
+    hosts: Mapped[list["Host"]] = relationship(back_populates="office", lazy="noload")
