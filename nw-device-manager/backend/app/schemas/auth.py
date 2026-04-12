@@ -16,6 +16,7 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
+    email: str | None
     display_name: str | None
     role: UserRole
     is_active: bool
@@ -25,6 +26,15 @@ class UserResponse(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
+    email: str | None = None
     display_name: str | None = None
     password: str
     role: UserRole = UserRole.USER
+
+
+class UserUpdate(BaseModel):
+    email: str | None = None
+    display_name: str | None = None
+    password: str | None = None
+    role: UserRole | None = None
+    is_active: bool | None = None

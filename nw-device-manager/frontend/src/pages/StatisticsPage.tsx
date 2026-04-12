@@ -154,7 +154,7 @@ export default function StatisticsPage() {
               dataSource={modelStats}
               rowKey={(r) => `${r.vendor}-${r.model}`}
               size="small"
-              pagination={{ pageSize: 20 }}
+              pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ["10", "20", "50", "100"] }}
             />
           </Card>
         </Col>
@@ -179,7 +179,7 @@ export default function StatisticsPage() {
               dataSource={boardStats}
               rowKey={(r) => r.board_name || "_none"}
               size="small"
-              pagination={{ pageSize: 20, showSizeChanger: true }}
+              pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ["10", "20", "50", "100"] }}
             />
           </Card>
         </Col>

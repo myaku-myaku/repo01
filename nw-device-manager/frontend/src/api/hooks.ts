@@ -28,6 +28,97 @@ export function useLogin() {
   });
 }
 
+// Users
+export function useUsers() {
+  return useQuery<User[]>({
+    queryKey: ["users"],
+    queryFn: () => apiClient.get("/auth/users").then((r) => r.data),
+  });
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      username: string;
+      email?: string;
+      display_name?: string;
+      password: string;
+      role?: "admin" | "user";
+    }) => apiClient.post("/auth/users", data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      data,
+    }: {
+      userId: number;
+      data: {
+        email?: string;
+        display_name?: string;
+        password?: string;
+        role?: "admin" | "user";
+        is_active?: boolean;
+      };
+    }) => apiClient.patch(`/auth/users/${userId}`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: number) =>
+      apiClient.delete(`/auth/users/${userId}`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+// Reservations
+export interface ReservationListItem {
+  id: number;
+  port_id: number;
+  reserved_by: number;
+  reserved_by_name: string | null;
+  reserved_at: string;
+  expires_at: string | null;
+  purpose: string | null;
+  status: "active" | "released" | "expired";
+  hostname: string;
+  host_id: number;
+  office_name: string;
+  office_id: number;
+  prefecture_name: string;
+  prefecture_id: number;
+  region_id: number;
+  slot_number: string;
+  port_number: string;
+  port_type: string | null;
+  port_rate: string | null;
+}
+
+export function useReservations(params?: {
+  status?: string;
+  region_id?: number;
+  prefecture_id?: number;
+  office_id?: number;
+  host_id?: number;
+  my_only?: boolean;
+}) {
+  return useQuery<ReservationListItem[]>({
+    queryKey: ["reservations", params],
+    queryFn: () =>
+      apiClient
+        .get("/ports/reservations", { params })
+        .then((r) => r.data),
+  });
+}
+
 // Tree
 export function useRegionTree() {
   return useQuery<TreeRegion[]>({
@@ -101,7 +192,10 @@ export function useReleaseReservation() {
   return useMutation({
     mutationFn: (portId: number) =>
       apiClient.delete(`/ports/${portId}/reserve`).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hostDetail"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hostDetail"] });
+      qc.invalidateQueries({ queryKey: ["reservations"] });
+    },
   });
 }
 
@@ -193,6 +287,28 @@ export function useOfficeDeviceList() {
   return useQuery<OfficeDeviceListResponse>({
     queryKey: ["officeDeviceList"],
     queryFn: () => apiClient.get("/offices/device-list").then((r) => r.data),
+  });
+}
+
+// NCE NBI
+export interface NCEStatus {
+  status: string;
+  message: string;
+  total_ne?: number;
+}
+
+export function useNCEStatus() {
+  return useQuery<NCEStatus>({
+    queryKey: ["nce", "status"],
+    queryFn: () => apiClient.get("/nce/status").then((r) => r.data),
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+export function useTriggerNCESync() {
+  return useMutation({
+    mutationFn: () => apiClient.post("/nce/sync").then((r) => r.data),
   });
 }
 

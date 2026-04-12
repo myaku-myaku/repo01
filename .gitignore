@@ -15,3 +15,12 @@ node_modules/
 
 # バックアップ
 160.Orderflow/00.backup/
+
+# NW Device Manager - バイナリ・ドキュメント
+nw-device-manager/iMaster NCE-T*/
+nw-device-manager/*.zip
+nw-device-manager/*.png
+nw-device-manager/frontend/tsconfig.tsbuildinfo
+
+# Excelテンポラリ
+~$*

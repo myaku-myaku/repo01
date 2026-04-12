@@ -1,8 +1,10 @@
-import { InboxOutlined } from "@ant-design/icons";
-import { Card, Descriptions, message, Progress, Result, Tag, Upload } from "antd";
+import { ApiOutlined, InboxOutlined, SyncOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Descriptions, Divider, message, Progress, Result, Space, Tag, Upload } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/api/client";
+import { useNCEStatus, useTriggerNCESync } from "@/api/hooks";
+import { useAuthStore } from "@/stores/authStore";
 
 interface TaskProgress {
   id: string;
@@ -230,6 +232,135 @@ export default function ImportPage() {
           style={{ marginTop: 24 }}
         />
       )}
+
+      <Divider />
+      <NCESyncSection
+        importing={importing}
+        setImporting={setImporting}
+        setProgress={setProgress}
+        startPolling={startPolling}
+      />
     </Card>
+  );
+}
+
+
+function NCESyncSection({
+  importing,
+  setImporting,
+  setProgress,
+  startPolling,
+}: {
+  importing: boolean;
+  setImporting: (v: boolean) => void;
+  setProgress: (v: TaskProgress | null) => void;
+  startPolling: (taskId: string) => void;
+}) {
+  const user = useAuthStore((s) => s.user);
+  const { data: nceStatus, isLoading: nceLoading } = useNCEStatus();
+  const triggerSync = useTriggerNCESync();
+
+  const isConnected = nceStatus?.status === "ok";
+
+  const handleSync = async () => {
+    try {
+      setImporting(true);
+      setProgress(null);
+      const result = await triggerSync.mutateAsync();
+      startPolling(result.task_id);
+      message.info("NCE同期を開始しました");
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || "NCE同期の開始に失敗しました");
+      setImporting(false);
+    }
+  };
+
+  const statusTag = () => {
+    if (nceLoading) return <Tag>確認中...</Tag>;
+    switch (nceStatus?.status) {
+      case "ok":
+        return <Tag color="green">接続済</Tag>;
+      case "not_configured":
+        return <Tag color="default">未設定</Tag>;
+      case "auth_failed":
+        return <Tag color="red">認証失敗</Tag>;
+      case "connect_failed":
+        return <Tag color="red">接続不可</Tag>;
+      default:
+        return <Tag color="orange">{nceStatus?.status}</Tag>;
+    }
+  };
+
+  return (
+    <div>
+      <h3 style={{ marginBottom: 16 }}>
+        <ApiOutlined style={{ marginRight: 8 }} />
+        NCE NBI 自動同期
+      </h3>
+
+      <Space direction="vertical" style={{ width: "100%" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span>NCE接続ステータス:</span>
+          {statusTag()}
+          {isConnected && nceStatus?.total_ne && (
+            <span style={{ color: "#888", fontSize: 12 }}>
+              (NE総数: {nceStatus.total_ne})
+            </span>
+          )}
+        </div>
+
+        {nceStatus?.status === "not_configured" && (
+          <Alert
+            type="info"
+            showIcon
+            message="NCE NBI未設定"
+            description="サーバーの .env ファイルに NCE_BASE_URL, NCE_USERNAME, NCE_PASSWORD を設定してください。"
+          />
+        )}
+
+        {nceStatus?.status === "auth_failed" && (
+          <Alert
+            type="warning"
+            showIcon
+            message="NCE認証エラー"
+            description={nceStatus.message}
+          />
+        )}
+
+        {nceStatus?.status === "connect_failed" && (
+          <Alert
+            type="error"
+            showIcon
+            message="NCE接続エラー"
+            description={nceStatus.message}
+          />
+        )}
+
+        {user?.role === "admin" && (
+          <Button
+            type="primary"
+            icon={<SyncOutlined />}
+            onClick={handleSync}
+            loading={triggerSync.isPending}
+            disabled={importing || !isConnected}
+          >
+            NCEから同期実行
+          </Button>
+        )}
+
+        {user?.role !== "admin" && (
+          <Alert
+            type="info"
+            showIcon
+            message="NCE同期の実行には管理者権限が必要です"
+          />
+        )}
+
+        <p style={{ color: "#999", fontSize: 12, margin: 0 }}>
+          iMaster NCE-T REST NBI経由でNE・ボード・ポート情報を自動取得します。
+          CSVインポートと同じ進捗表示・データ更新ロジックを使用します。
+        </p>
+      </Space>
+    </div>
   );
 }

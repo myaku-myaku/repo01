@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, Query
@@ -208,6 +209,16 @@ async def get_stats_by_region(
     ]
 
 
+_BOARD_SUFFIX_RE = re.compile(r"\[\d+-\d+-\d+\]$")
+
+
+def _normalize_board_name(name: str | None) -> str | None:
+    """Remove trailing slot/port suffix like '[0-1-8]' from board name."""
+    if not name:
+        return name
+    return _BOARD_SUFFIX_RE.sub("", name)
+
+
 @router.get("/by-board", response_model=list[BoardStats])
 async def get_stats_by_board(
     db: AsyncSession = Depends(get_db),
@@ -216,27 +227,40 @@ async def get_stats_by_board(
     result = await db.execute(
         select(
             Slot.board_name,
-            func.count(Slot.id).label("slot_count"),
-            func.count(Port.id).label("total_ports"),
-            func.sum(case((Port.usage_status == UsageStatus.AVAILABLE, 1), else_=0)).label("available_ports"),
-            func.sum(case((Port.usage_status == UsageStatus.IN_USE, 1), else_=0)).label("in_use_ports"),
+            Slot.id.label("slot_id"),
+            func.count(Port.id).label("port_count"),
+            func.sum(case((Port.usage_status == UsageStatus.AVAILABLE, 1), else_=0)).label("available"),
+            func.sum(case((Port.usage_status == UsageStatus.IN_USE, 1), else_=0)).label("in_use"),
         )
         .outerjoin(Port, Port.slot_id == Slot.id)
-        .group_by(Slot.board_name)
-        .order_by(func.count(Slot.id).desc())
+        .group_by(Slot.id, Slot.board_name)
     )
     rows = result.all()
-    return [
-        BoardStats(
-            board_name=r.board_name,
-            slot_count=r.slot_count,
-            total_ports=r.total_ports,
-            available_ports=r.available_ports or 0,
-            in_use_ports=r.in_use_ports or 0,
-            utilization_pct=round((1 - (r.available_ports or 0) / r.total_ports) * 100, 1) if r.total_ports > 0 else 0,
-        )
-        for r in rows
-    ]
+
+    buckets: dict[str | None, dict[str, int]] = defaultdict(
+        lambda: {"slot_count": 0, "total_ports": 0, "available": 0, "in_use": 0}
+    )
+    for r in rows:
+        key = _normalize_board_name(r.board_name)
+        buckets[key]["slot_count"] += 1
+        buckets[key]["total_ports"] += r.port_count or 0
+        buckets[key]["available"] += r.available or 0
+        buckets[key]["in_use"] += r.in_use or 0
+
+    stats = []
+    for board_name, c in buckets.items():
+        total = c["total_ports"]
+        avail = c["available"]
+        stats.append(BoardStats(
+            board_name=board_name,
+            slot_count=c["slot_count"],
+            total_ports=total,
+            available_ports=avail,
+            in_use_ports=c["in_use"],
+            utilization_pct=round((1 - avail / total) * 100, 1) if total > 0 else 0,
+        ))
+    stats.sort(key=lambda s: s.slot_count, reverse=True)
+    return stats
 
 
 @router.get("/by-rate", response_model=list[RateStats])

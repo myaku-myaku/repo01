@@ -9,6 +9,7 @@ import DevicePage from "@/pages/DevicePage";
 import ImportPage from "@/pages/ImportPage";
 import OfficeListPage from "@/pages/OfficeListPage";
 import AdminPage from "@/pages/AdminPage";
+import ReservationsPage from "@/pages/ReservationsPage";
 import StatisticsPage from "@/pages/StatisticsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,7 @@ export default function App() {
                   <Route path="/" element={<DevicePage />} />
                   <Route path="/offices" element={<OfficeListPage />} />
                   <Route path="/statistics" element={<StatisticsPage />} />
+                  <Route path="/reservations" element={<ReservationsPage />} />
                   <Route path="/import" element={<ImportPage />} />
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="*" element={<Navigate to="/" />} />

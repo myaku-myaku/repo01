@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   username: string;
+  email: string | null;
   display_name: string | null;
   role: "admin" | "user";
   is_active: boolean;
@@ -35,6 +36,15 @@ export interface TreeHost {
   status: string;
 }
 
+export interface ActiveReservation {
+  id: number;
+  reserved_by: number;
+  reserved_by_name: string | null;
+  reserved_at: string;
+  expires_at: string | null;
+  purpose: string | null;
+}
+
 export interface PortData {
   id: number;
   slot_id: number;
@@ -48,6 +58,7 @@ export interface PortData {
   usage_status: "available" | "in_use" | "reserved" | "faulty";
   description: string | null;
   sfp_info: Record<string, unknown> | null;
+  active_reservation: ActiveReservation | null;
 }
 
 export interface SlotData {

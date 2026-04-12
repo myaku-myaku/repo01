@@ -86,6 +86,7 @@ export default function HostDetailView({ hostId }: Props) {
   ];
 
   const portColumns: ColumnsType<PortData> = [
+    { title: "スロット", dataIndex: "_slotNumber", width: 80, sorter: (a: any, b: any) => { const na = Number(a._slotNumber), nb = Number(b._slotNumber); return (isNaN(na) ? 9999 : na) - (isNaN(nb) ? 9999 : nb); } },
     { title: "ポート番号", dataIndex: "port_number", width: 120 },
     { title: "ポート名", dataIndex: "port_name", width: 200, ellipsis: true },
     { title: "タイプ", dataIndex: "port_type", width: 100 },
@@ -114,6 +115,21 @@ export default function HostDetailView({ hostId }: Props) {
           {text || "クリックして入力"}
         </span>
       ),
+    },
+    {
+      title: "予約者",
+      width: 120,
+      render: (_: unknown, record: PortData) =>
+        record.active_reservation?.reserved_by_name || "-",
+    },
+    {
+      title: "予約日時",
+      width: 140,
+      render: (_: unknown, record: PortData) => {
+        if (!record.active_reservation) return "-";
+        const d = new Date(record.active_reservation.reserved_at);
+        return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      },
     },
     {
       title: "操作",

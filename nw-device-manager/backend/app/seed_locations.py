@@ -30,6 +30,7 @@ REGION_PREFECTURE_MAP = OrderedDict([
         ("東京", "C東京"),
         ("千葉", "D千葉"),
         ("神奈川", "E神奈川"),
+        ("LAB", "LAB"),
     ]),
     ("東海", [
         ("愛知", "F愛知"),

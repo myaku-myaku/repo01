@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import admin, auth, hosts, import_, offices, ports, regions, reservations, statistics
+from app.routers import admin, auth, hosts, import_, nce_sync, offices, ports, regions, reservations, statistics
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ app.include_router(reservations.router)
 app.include_router(import_.router)
 app.include_router(offices.router)
 app.include_router(statistics.router)
+app.include_router(nce_sync.router)
 
 
 @app.get("/health")

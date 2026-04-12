@@ -1,8 +1,19 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from app.models.host import HostStatus
 from app.models.port import UsageStatus
 from app.models.slot import SlotStatus
+
+
+class ActiveReservationInfo(BaseModel):
+    id: int
+    reserved_by: int
+    reserved_by_name: str | None = None
+    reserved_at: datetime
+    expires_at: datetime | None
+    purpose: str | None
 
 
 class PortResponse(BaseModel):
@@ -18,6 +29,7 @@ class PortResponse(BaseModel):
     usage_status: UsageStatus
     description: str | None
     sfp_info: dict | None
+    active_reservation: ActiveReservationInfo | None = None
 
     model_config = {"from_attributes": True}
 

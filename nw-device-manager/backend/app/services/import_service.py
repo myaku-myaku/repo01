@@ -243,7 +243,7 @@ def _parse_zte_port(df: pd.DataFrame) -> list[dict]:
             "model": _safe_str(row.get("Ne Type")),
             "ne_type": _safe_str(row.get("Ne Type")),
             "slot_number": _extract_slot_from_board(row.get("Board Name")),
-            "board_name": _safe_str(row.get("Board Name")),
+            "board_name": _strip_board_bracket(row.get("Board Name")),
             "port_number": _safe_str(row.get("Port No")) or "0",
             "port_name": None,
             "port_type": _safe_str(row.get("Port Type")),
@@ -390,11 +390,33 @@ def _parse_generic(df: pd.DataFrame) -> list[dict]:
     return records
 
 
+_BOARD_BRACKET_RE = re.compile(r"\[(\d+)-(\d+)-(\d+)\]$")
+
+
 def _extract_slot_from_board(board_name) -> str:
+    """Extract slot number from board name.
+    ZTE format: 'OIXG2A[0-1-8]' → slot='1' (middle number)
+    Fallback: split by '-' and return first part.
+    """
     if pd.isna(board_name):
         return "0"
-    parts = str(board_name).strip().split("-")
+    s = str(board_name).strip()
+    m = _BOARD_BRACKET_RE.search(s)
+    if m:
+        return m.group(2)  # middle number = slot
+    parts = s.split("-")
     return parts[0] if parts else "0"
+
+
+def _strip_board_bracket(board_name) -> str | None:
+    """Strip trailing [x-y-z] from board name.
+    'OIXG2A[0-1-8]' → 'OIXG2A'
+    """
+    if pd.isna(board_name):
+        return None
+    s = str(board_name).strip()
+    s = _BOARD_BRACKET_RE.sub("", s)
+    return s if s else None
 
 
 def _extract_board_from_port_full_name(port_full_name) -> str | None:
@@ -409,7 +431,8 @@ def _extract_board_from_port_full_name(port_full_name) -> str | None:
     parts = s.split("-")
     if len(parts) >= 2:
         return parts[1]
-    return str(port_full_name).strip()
+    # '-' を含まない場合はボード名を抽出できない (例: Ethernet0/0/0)
+    return None
 
 
 def _extract_slot_from_port_name(port_name) -> str:

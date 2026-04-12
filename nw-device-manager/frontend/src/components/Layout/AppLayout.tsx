@@ -1,6 +1,7 @@
 import {
   BarChartOutlined,
   BankOutlined,
+  BookOutlined,
   CloudServerOutlined,
   LogoutOutlined,
   SettingOutlined,
@@ -46,6 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const menuItems = [
     { key: "/", icon: <CloudServerOutlined />, label: "装置管理" },
     { key: "/offices", icon: <BankOutlined />, label: "局舎一覧" },
+    { key: "/reservations", icon: <BookOutlined />, label: "予約一覧" },
     { key: "/statistics", icon: <BarChartOutlined />, label: "統計" },
     { key: "/import", icon: <UploadOutlined />, label: "インポート" },
     ...(user?.role === "admin"
@@ -63,12 +65,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           padding: "0 24px",
         }}
       >
-        <Typography.Text
-          strong
-          style={{ color: "#fff", fontSize: 18, marginRight: 40, whiteSpace: "nowrap" }}
-        >
-          NW Device Manager
-        </Typography.Text>
+        <img
+          src="/logo.png"
+          alt="PRISM"
+          style={{ height: 54, marginRight: 24, marginTop: -4, marginBottom: -4, flexShrink: 0, objectFit: "contain" }}
+        />
         <Menu
           theme="dark"
           mode="horizontal"
